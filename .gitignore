@@ -1,0 +1,13 @@
+.DS_Store
+.build/
+build/
+DerivedData/
+*.swp
+*.lock
+tmp_derived/
+hud_debug.txt
+
+# Xcode User Data
+xcuserdata/
+*.xcuserstate
+*.xcuserdata
