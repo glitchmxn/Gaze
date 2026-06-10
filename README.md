@@ -6,6 +6,15 @@
 
 A high-performance macOS screen annotation utility built with SwiftUI and AppKit. Specially engineered for teachers, presenters, and developers, Gaze is optimized for pen tablets with professional ink smoothing, stabilization, and multi-display setups.
 
+## 📥 Direct Download
+
+For a quick setup, you can download the pre-compiled version of the app directly:
+
+👉 **[Download Gaze.zip](https://github.com/glitchmxn/Gaze/raw/main/Gaze.zip)** (Extract the ZIP file and drag `Gaze.app` into your Applications folder).
+
+> [!NOTE]
+> As the app is not signed with an official Apple Developer certificate, the first time you open it, you may need to right-click `Gaze.app` and choose **Open**, or navigate to **System Settings > Privacy & Security** and select **Open Anyway**.
+
 ---
 
 ## 🚀 Core Features
