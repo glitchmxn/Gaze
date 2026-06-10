@@ -1345,6 +1345,71 @@ struct CanvasModePickerView: View {
                     .transition(.opacity.combined(with: .move(edge: .top)))
                 }
             }
+            
+            // ── Whiteboard Mode Section ──────────────────────────────────────
+            if manager.canvasColor != .none {
+                Divider()
+                    .opacity(0.5)
+                
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        Text("Whiteboard Mode")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Toggle("", isOn: $manager.isWhiteboardModeEnabled)
+                            .toggleStyle(.switch)
+                            .labelsHidden()
+                            .scaleEffect(0.8)
+                    }
+                    
+                    if manager.isWhiteboardModeEnabled {
+                        HStack {
+                            Text("Show Navigator Map")
+                                .font(.system(size: 11, weight: .medium))
+                            Spacer()
+                            Toggle("", isOn: $manager.isMiniMapEnabled)
+                                .toggleStyle(.switch)
+                                .labelsHidden()
+                                .scaleEffect(0.8)
+                        }
+                        .padding(.top, 2)
+                        
+                        HStack(spacing: 12) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Zoom")
+                                    .font(.system(size: 10, weight: .medium))
+                                    .foregroundColor(.secondary)
+                                Text("\(Int(round(manager.zoomScale * 100)))%")
+                                    .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                            }
+                            
+                            Spacer()
+                            
+                            Button(action: {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+                                    manager.zoomScale = 1.0
+                                    manager.panOffset = .zero
+                                }
+                            }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "arrow.counterclockwise")
+                                        .font(.system(size: 10, weight: .semibold))
+                                    Text("Reset View")
+                                        .font(.system(size: 11, weight: .semibold))
+                                }
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(Color.primary.opacity(0.08))
+                                .cornerRadius(6)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .padding(.top, 4)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
+                }
+            }
         }
         .padding(16)
         .frame(width: 340)
@@ -2504,7 +2569,7 @@ struct CanvasView: View {
         ZStack {
             if isCleanCapture || localManager.isToolbarVisible {
                 if !isCleanCapture {
-                    CanvasBackgroundView(color: localManager.canvasColor, pattern: localManager.canvasPattern, gridSpacing: localManager.canvasGridSpacing)
+                    CanvasBackgroundView(manager: localManager, color: localManager.canvasColor, pattern: localManager.canvasPattern, gridSpacing: localManager.canvasGridSpacing)
                     .contentShape(Rectangle())
                     .gesture(DragGesture(minimumDistance: 0)
                         .onChanged { localManager.selectedTool == .select ? localManager.handleSelectDragChanged($0, screenID: screenID) : localManager.handleDragChanged($0, screenID: screenID) }
@@ -2553,6 +2618,11 @@ struct CanvasView: View {
                 // UNIFIED VECTOR CANVAS
                 // High-performance single-pass rendering.
                 Canvas { context, size in
+                    var context = context
+                    if localManager.isWhiteboardModeEnabled && localManager.canvasColor != .none {
+                        context.translateBy(x: localManager.panOffset.x, y: localManager.panOffset.y)
+                        context.scaleBy(x: localManager.zoomScale, y: localManager.zoomScale)
+                    }
                     // Helper to draw an element locally with native coordinates
                     func drawNativeElement(_ element: DrawingElement, in ctx: inout GraphicsContext) {
                         if element.rotationAngle != 0 {
@@ -2656,6 +2726,8 @@ struct CanvasView: View {
                         }
                         
                         let pts = laserPointsOnScreen
+                        let active = localManager.isWhiteboardModeEnabled && localManager.canvasColor != .none
+                        let zoom = active ? localManager.zoomScale : 1.0
                         
                         // 1. Draw Trail (only if in .trail mode)
                         if localManager.laserMode == .trail && pts.count >= 2 {
@@ -2682,8 +2754,8 @@ struct CanvasView: View {
                                 let factor = Double(i + 1) / Double(pts.count - 1)
                                 laserSegments.append(LaserSegment(
                                     path: segmentPath,
-                                    glowWidth: 14.0 * factor,
-                                    coreWidth: 5.0 * factor
+                                    glowWidth: (14.0 * factor) / zoom,
+                                    coreWidth: (5.0 * factor) / zoom
                                 ))
                             }
                             
@@ -2716,17 +2788,17 @@ struct CanvasView: View {
                         // 2. Draw glowing pointer tip dot (rendered in both modes)
                         if let tip = pts.last {
                             // Outer neon glow
-                            let glowRadius: CGFloat = 10
+                            let glowRadius: CGFloat = 10 / zoom
                             let glowRect = CGRect(x: tip.location.x - glowRadius, y: tip.location.y - glowRadius, width: glowRadius * 2, height: glowRadius * 2)
                             context.fill(Path(ellipseIn: glowRect), with: .color(laserColor.opacity(0.35)))
                             
                             // Mid glow
-                            let midRadius: CGFloat = 7
+                            let midRadius: CGFloat = 7 / zoom
                             let midRect = CGRect(x: tip.location.x - midRadius, y: tip.location.y - midRadius, width: midRadius * 2, height: midRadius * 2)
                             context.fill(Path(ellipseIn: midRect), with: .color(laserColor))
                             
                             // Inner white core
-                            let innerRadius: CGFloat = 3.5
+                            let innerRadius: CGFloat = 3.5 / zoom
                             let innerRect = CGRect(x: tip.location.x - innerRadius, y: tip.location.y - innerRadius, width: innerRadius * 2, height: innerRadius * 2)
                             context.fill(Path(ellipseIn: innerRect), with: .color(Color.white.opacity(0.95)))
                         }
@@ -2823,6 +2895,21 @@ struct CanvasView: View {
                     }
                 }
                 .allowsHitTesting(false)
+            }
+            
+            if !isCleanCapture && localManager.isWhiteboardModeEnabled && localManager.canvasColor != .none && localManager.isMiniMapEnabled {
+                VStack {
+                    Spacer()
+                    HStack {
+                        Spacer()
+                        MiniMapView(manager: localManager, screen: screen) { element, ctx in
+                            self.drawElement(element, in: &ctx)
+                        }
+                        .padding(.trailing, 20)
+                        .padding(.bottom, 20)
+                    }
+                }
+                .transition(.opacity.combined(with: .scale(scale: 0.95)))
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -3658,16 +3745,30 @@ struct SelectionOverlayView: View {
             return false
         }()
         
-        let rawCorners = corners(of: box, center: center, angle: angle)
+        let screenBox: CGRect = {
+            if manager.isWhiteboardModeEnabled && manager.canvasColor != .none {
+                return CGRect(
+                    x: box.origin.x * manager.zoomScale + manager.panOffset.x,
+                    y: box.origin.y * manager.zoomScale + manager.panOffset.y,
+                    width: box.width * manager.zoomScale,
+                    height: box.height * manager.zoomScale
+                )
+            }
+            return box
+        }()
+        
+        let screenCenter = manager.isWhiteboardModeEnabled && manager.canvasColor != .none ? manager.toScreenSpace(center) : center
+        
+        let rawCorners = corners(of: screenBox, center: screenCenter, angle: angle)
         let tl = rawCorners[0].point
         let tr = rawCorners[1].point
         let bl = rawCorners[2].point
         let br = rawCorners[3].point
         
-        let tc = CGPoint(x: box.midX, y: box.minY)
-        let rotTC = manager.rotatePoint(tc, around: center, by: angle)
-        let rot = CGPoint(x: box.midX, y: box.minY - 24)
-        let rotHandlePos = manager.rotatePoint(rot, around: center, by: angle)
+        let tc = CGPoint(x: screenBox.midX, y: screenBox.minY)
+        let rotTC = manager.rotatePoint(tc, around: screenCenter, by: angle)
+        let rot = CGPoint(x: screenBox.midX, y: screenBox.minY - 24)
+        let rotHandlePos = manager.rotatePoint(rot, around: screenCenter, by: angle)
         
         let singleElementId: UUID? = {
             if !isMulti {
@@ -3684,9 +3785,9 @@ struct SelectionOverlayView: View {
             return nil
         }()
         
-        let mBox = box
-        let mCenter = center
-        var mCornerRadius: CGFloat = singleElement?.cornerRadius ?? 0
+        let mBox = screenBox
+        let mCenter = screenCenter
+        var mCornerRadius: CGFloat = (singleElement?.cornerRadius ?? 0) * (manager.isWhiteboardModeEnabled && manager.canvasColor != .none ? manager.zoomScale : 1.0)
         
         if isMirroredScreen,
            let element = singleElement,
@@ -3694,15 +3795,15 @@ struct SelectionOverlayView: View {
             if let srcSize = manager.size(from: elementScreenID),
                let destSize = manager.size(from: screenID) {
                 let transform = manager.getTransform(from: srcSize, to: destSize, mode: manager.mirroringScaleMode)
-                mCornerRadius = (singleElement?.cornerRadius ?? 0) * transform.a
+                mCornerRadius = (singleElement?.cornerRadius ?? 0) * transform.a * (manager.isWhiteboardModeEnabled && manager.canvasColor != .none ? manager.zoomScale : 1.0)
             }
         }
         
         return SelectionInfo(
             isMulti: isMulti,
             angle: angle,
-            box: box,
-            center: center,
+            box: screenBox,
+            center: screenCenter,
             isMirroredScreen: isMirroredScreen,
             rTL: tl,
             rTR: tr,
@@ -4154,7 +4255,11 @@ struct CornerRadiusHandle: View {
                         let maxRadius = min(box.width, box.height) / 2
                         let newRadius = max(0, min(maxRadius, calculatedRadius))
                         
-                        manager.elements[elementIdx].cornerRadius = newRadius
+                        if manager.isWhiteboardModeEnabled && manager.canvasColor != .none {
+                            manager.elements[elementIdx].cornerRadius = newRadius / manager.zoomScale
+                        } else {
+                            manager.elements[elementIdx].cornerRadius = newRadius
+                        }
                         manager.updateCachedFields(idx: elementIdx)
                     }
                     .onEnded { _ in
@@ -4261,6 +4366,10 @@ struct PatternOverlayView: View {
     let lineWidth: CGFloat
     let dotSize: CGFloat
     
+    var isWhiteboardModeEnabled: Bool = false
+    var zoomScale: CGFloat = 1.0
+    var panOffset: CGPoint = .zero
+    
     var body: some View {
         Canvas { context, size in
             let isDark = color.isDark
@@ -4273,33 +4382,61 @@ struct PatternOverlayView: View {
                 pColor = Color.black.opacity(0.30)
             }
             
+            let active = isWhiteboardModeEnabled && color != .none
+            let zoom = active ? zoomScale : 1.0
+            let pan = active ? panOffset : .zero
+            
+            var localContext = context
+            if active {
+                localContext.translateBy(x: pan.x, y: pan.y)
+                localContext.scaleBy(x: zoom, y: zoom)
+            }
+            
+            let minX = active ? (0 - pan.x) / zoom : 0
+            let maxX = active ? (size.width - pan.x) / zoom : size.width
+            let minY = active ? (0 - pan.y) / zoom : 0
+            let maxY = active ? (size.height - pan.y) / zoom : size.height
+            
+            let drawLineWidth = active ? (lineWidth / zoom) : lineWidth
+            let drawDotSize = active ? (dotSize / zoom) : dotSize
+            
             switch pattern {
             case .none: break
             case .grid:
-                for x in stride(from: 0, to: size.width, by: step) {
+                let startX = floor(minX / step) * step
+                let endX = ceil(maxX / step) * step
+                for x in stride(from: startX, through: endX, by: step) {
                     var p = Path()
-                    p.move(to: CGPoint(x: x, y: 0))
-                    p.addLine(to: CGPoint(x: x, y: size.height))
-                    context.stroke(p, with: .color(pColor), lineWidth: lineWidth)
+                    p.move(to: CGPoint(x: x, y: minY))
+                    p.addLine(to: CGPoint(x: x, y: maxY))
+                    localContext.stroke(p, with: .color(pColor), lineWidth: drawLineWidth)
                 }
-                for y in stride(from: 0, to: size.height, by: step) {
+                let startY = floor(minY / step) * step
+                let endY = ceil(maxY / step) * step
+                for y in stride(from: startY, through: endY, by: step) {
                     var p = Path()
-                    p.move(to: CGPoint(x: 0, y: y))
-                    p.addLine(to: CGPoint(x: size.width, y: y))
-                    context.stroke(p, with: .color(pColor), lineWidth: lineWidth)
+                    p.move(to: CGPoint(x: minX, y: y))
+                    p.addLine(to: CGPoint(x: maxX, y: y))
+                    localContext.stroke(p, with: .color(pColor), lineWidth: drawLineWidth)
                 }
             case .dot:
-                for x in stride(from: step / 2, to: size.width, by: step) {
-                    for y in stride(from: step / 2, to: size.height, by: step) {
-                        context.fill(Path(ellipseIn: CGRect(x: x - dotSize / 2, y: y - dotSize / 2, width: dotSize, height: dotSize)), with: .color(pColor))
+                let startX = floor((minX - step / 2) / step) * step + step / 2
+                let endX = ceil((maxX - step / 2) / step) * step + step / 2
+                let startY = floor((minY - step / 2) / step) * step + step / 2
+                let endY = ceil((maxY - step / 2) / step) * step + step / 2
+                for x in stride(from: startX, through: endX, by: step) {
+                    for y in stride(from: startY, through: endY, by: step) {
+                        localContext.fill(Path(ellipseIn: CGRect(x: x - drawDotSize / 2, y: y - drawDotSize / 2, width: drawDotSize, height: drawDotSize)), with: .color(pColor))
                     }
                 }
             case .ruled:
-                for y in stride(from: step / 2, to: size.height, by: step) {
+                let startY = floor((minY - step / 2) / step) * step + step / 2
+                let endY = ceil((maxY - step / 2) / step) * step + step / 2
+                for y in stride(from: startY, through: endY, by: step) {
                     var p = Path()
-                    p.move(to: CGPoint(x: 0, y: y))
-                    p.addLine(to: CGPoint(x: size.width, y: y))
-                    context.stroke(p, with: .color(pColor), lineWidth: lineWidth)
+                    p.move(to: CGPoint(x: minX, y: y))
+                    p.addLine(to: CGPoint(x: maxX, y: y))
+                    localContext.stroke(p, with: .color(pColor), lineWidth: drawLineWidth)
                 }
             }
         }
@@ -4308,6 +4445,7 @@ struct PatternOverlayView: View {
 }
 
 struct CanvasBackgroundView: View {
+    @ObservedObject var manager: AppManager
     let color: CanvasColor
     let pattern: CanvasPattern
     let gridSpacing: Double
@@ -4315,7 +4453,16 @@ struct CanvasBackgroundView: View {
         ZStack {
             backgroundColor
             if pattern != .none && color != .none {
-                PatternOverlayView(color: color, pattern: pattern, step: CGFloat(gridSpacing), lineWidth: 0.75, dotSize: 2.2)
+                PatternOverlayView(
+                    color: color,
+                    pattern: pattern,
+                    step: CGFloat(gridSpacing),
+                    lineWidth: 0.75,
+                    dotSize: 2.2,
+                    isWhiteboardModeEnabled: manager.isWhiteboardModeEnabled,
+                    zoomScale: manager.zoomScale,
+                    panOffset: manager.panOffset
+                )
             }
         }
     }
@@ -4632,24 +4779,32 @@ struct StaticTextView: View {
         let centerOffset = CGPoint(x: element.textSize.width / 2, y: element.textSize.height / 2)
         let originalCenter = CGPoint(x: originalPos.x + centerOffset.x, y: originalPos.y + centerOffset.y)
         
+        var pos = originalCenter
         if let elementScreenID = element.screenID, elementScreenID != targetScreenID {
             if let srcSize = manager.size(from: elementScreenID),
                let destSize = manager.size(from: targetScreenID) {
                 let transform = manager.getTransform(from: srcSize, to: destSize, mode: manager.mirroringScaleMode)
-                return originalCenter.applying(transform)
+                pos = originalCenter.applying(transform)
             }
         }
-        return originalCenter
+        if manager.isWhiteboardModeEnabled && manager.canvasColor != .none {
+            pos = manager.toScreenSpace(pos)
+        }
+        return pos
     }
     
     private var transformedScale: CGFloat {
+        var scale = 1.0
         if let elementScreenID = element.screenID, elementScreenID != targetScreenID {
             if let srcSize = manager.size(from: elementScreenID),
                let destSize = manager.size(from: targetScreenID) {
-                return manager.lineWidthScale(from: srcSize, to: destSize, mode: manager.mirroringScaleMode)
+                scale = manager.lineWidthScale(from: srcSize, to: destSize, mode: manager.mirroringScaleMode)
             }
         }
-        return 1.0
+        if manager.isWhiteboardModeEnabled && manager.canvasColor != .none {
+            scale *= manager.zoomScale
+        }
+        return scale
     }
     
     private var actualTextSize: CGSize {
@@ -4718,6 +4873,31 @@ struct TextEditorWrapper: View {
     @ObservedObject var manager: AppManager
     @FocusState private var isFocused: Bool
     
+    private var transformedScale: CGFloat {
+        if manager.isWhiteboardModeEnabled && manager.canvasColor != .none {
+            return manager.zoomScale
+        }
+        return 1.0
+    }
+    
+    private var transformedPosition: CGPoint {
+        let originalPos = element.points.first?.location ?? .zero
+        let centerOffset = CGPoint(x: element.textSize.width / 2, y: element.textSize.height / 2)
+        let originalCenter = CGPoint(x: originalPos.x + centerOffset.x, y: originalPos.y + centerOffset.y)
+        
+        if manager.isWhiteboardModeEnabled && manager.canvasColor != .none {
+            return manager.toScreenSpace(originalCenter)
+        }
+        return originalCenter
+    }
+    
+    private var actualTextSize: CGSize {
+        return CGSize(
+            width: element.textSize.width * transformedScale,
+            height: element.textSize.height * transformedScale
+        )
+    }
+    
     var body: some View {
         TextEditor(text: Binding(
             get: { element.text ?? "" },
@@ -4727,7 +4907,7 @@ struct TextEditorWrapper: View {
                 manager.updateTextElement(id: element.id, text: newText, size: newSize)
             }
         ))
-        .font(element.fontFamily.toFont(size: element.fontSize, isBold: element.isBold, isItalic: element.isItalic))
+        .font(element.fontFamily.toFont(size: element.fontSize * transformedScale, isBold: element.isBold, isItalic: element.isItalic))
         .foregroundColor(element.color)
         .scrollContentBackground(.hidden)
         .scrollIndicators(.hidden)
@@ -4735,38 +4915,35 @@ struct TextEditorWrapper: View {
         .multilineTextAlignment(element.textAlignment)
         .focused($isFocused)
         .focusEffectDisabled()
-        .frame(width: element.textSize.width, height: element.textSize.height)
-        .padding(6)
+        .frame(width: actualTextSize.width, height: actualTextSize.height)
+        .padding(6 * transformedScale)
         .background(
             Group {
                 switch element.textBackgroundStyle {
                 case .none:
                     Color.clear
                 case .solid:
-                    RoundedRectangle(cornerRadius: 6)
+                    RoundedRectangle(cornerRadius: 6 * transformedScale)
                         .fill(element.color.opacity(0.12))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 6)
-                                .stroke(element.color.opacity(0.25), lineWidth: 1)
+                            RoundedRectangle(cornerRadius: 6 * transformedScale)
+                                .stroke(element.color.opacity(0.25), lineWidth: 1 * transformedScale)
                         )
                 case .glass:
-                    RoundedRectangle(cornerRadius: 6)
+                    RoundedRectangle(cornerRadius: 6 * transformedScale)
                         .fill(Color.clear)
-                        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 6))
+                        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 6 * transformedScale))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 6)
-                                .stroke(Color.primary.opacity(0.1), lineWidth: 1)
+                            RoundedRectangle(cornerRadius: 6 * transformedScale)
+                                .stroke(Color.primary.opacity(0.1), lineWidth: 1 * transformedScale)
                         )
                 case .border:
-                    RoundedRectangle(cornerRadius: 6)
-                        .stroke(element.color.opacity(0.4), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 6 * transformedScale)
+                        .stroke(element.color.opacity(0.4), lineWidth: 1 * transformedScale)
                 }
             }
         )
-        .position(
-            x: (element.points.first?.location.x ?? 0) + element.textSize.width / 2,
-            y: (element.points.first?.location.y ?? 0) + element.textSize.height / 2
-        )
+        .position(transformedPosition)
         .onAppear {
             isFocused = true
         }
@@ -5305,5 +5482,264 @@ extension NSCursor {
         image.unlockFocus()
         
         return NSCursor(image: image, hotSpot: NSPoint(x: imageSize / 2.0, y: imageSize / 2.0))
+    }
+}
+
+struct MiniMapView: View {
+    @ObservedObject var manager: AppManager
+    let screen: NSScreen
+    let drawElement: (DrawingElement, inout GraphicsContext) -> Void
+    
+    @Environment(\.colorScheme) var colorScheme
+    @State private var isHovered: Bool = false
+    @State private var isDraggingViewport: Bool = false
+    
+    private var screenID: String {
+        "\(screen.frame.origin.x),\(screen.frame.origin.y),\(screen.frame.size.width),\(screen.frame.size.height)"
+    }
+    
+    private let miniMapWidth: CGFloat = 190
+    private let miniMapHeight: CGFloat = 115
+    
+    private var canvasBounds: CGRect {
+        let selectedScreenElements = manager.elements.filter {
+            $0.screenID == screenID || $0.screenID == nil || (manager.isWhiteboardModeEnabled && manager.isMirroringEnabled)
+        }
+        let screenW = screen.frame.width
+        let screenH = screen.frame.height
+        
+        let viewport = CGRect(
+            x: -manager.panOffset.x / manager.zoomScale,
+            y: -manager.panOffset.y / manager.zoomScale,
+            width: screenW / manager.zoomScale,
+            height: screenH / manager.zoomScale
+        )
+        
+        var unionBox = viewport
+        for el in selectedScreenElements {
+            let elBox = manager.boundingBox(of: el)
+            unionBox = unionBox.union(elBox)
+        }
+        
+        let paddingX = max(50, unionBox.width * 0.1)
+        let paddingY = max(50, unionBox.height * 0.1)
+        return unionBox.insetBy(dx: -paddingX, dy: -paddingY)
+    }
+    
+    private var isDark: Bool {
+        if manager.canvasColor != .none {
+            return manager.canvasColor.isDark
+        }
+        return colorScheme == .dark
+    }
+    
+    var body: some View {
+        Group {
+            if manager.isMiniMapCollapsed {
+                // Collapsed view: tiny bubble button
+                Button(action: {
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
+                        manager.isMiniMapCollapsed = false
+                    }
+                }) {
+                    Image(systemName: "map.fill")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(isDark ? .white : .black)
+                        .frame(width: 38, height: 38)
+                        .background(
+                            ConcentricRectangle()
+                                .fill(isDark ? Color.black.opacity(0.12) : Color.white.opacity(0.15))
+                        )
+                        .glassEffect(.regular, in: ConcentricRectangle())
+                        .overlay(
+                            ConcentricRectangle()
+                                .stroke(
+                                    LinearGradient(
+                                        colors: [
+                                            isHovered ? Color.blue.opacity(0.4) : Color.white.opacity(0.22),
+                                            isHovered ? Color.blue.opacity(0.15) : Color.white.opacity(0.06)
+                                        ],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    ),
+                                    lineWidth: 0.8
+                                )
+                        )
+                }
+                .buttonStyle(.plain)
+                .onHover { hovering in
+                    withAnimation(.easeInOut(duration: 0.18)) {
+                        isHovered = hovering
+                    }
+                }
+                .shadow(color: Color.blue.opacity(isHovered ? 0.15 : 0.05), radius: isHovered ? 8 : 4, x: 0, y: 3)
+            } else {
+                // Expanded card view
+                VStack(spacing: 0) {
+                    // Header title bar
+                    HStack(spacing: 6) {
+                        Image(systemName: "map")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(.secondary)
+                        Text("Navigator")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.primary)
+                        
+                        Spacer()
+                        
+                        // Zoom Badge
+                        Text("\(Int(round(manager.zoomScale * 100)))%")
+                            .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 1)
+                            .background(Color.primary.opacity(0.06))
+                            .cornerRadius(3)
+                        
+                        // Reset Button
+                        Button(action: {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+                                manager.zoomScale = 1.0
+                                manager.panOffset = .zero
+                            }
+                        }) {
+                            Image(systemName: "arrow.counterclockwise")
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundColor(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Reset Canvas View")
+                        
+                        Color.primary.opacity(0.1).frame(width: 1, height: 10)
+                        
+                        // Collapse Button
+                        Button(action: {
+                            withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
+                                manager.isMiniMapCollapsed = true
+                            }
+                        }) {
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 8, weight: .bold))
+                                .foregroundColor(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Color.primary.opacity(0.04))
+                    
+                    // Live mini-map viewport drawing
+                    Canvas { context, size in
+                        let bounds = canvasBounds
+                        let scaleX = size.width / bounds.width
+                        let scaleY = size.height / bounds.height
+                        let scale = min(scaleX, scaleY)
+                        
+                        let dx = (size.width - bounds.width * scale) / 2 - bounds.minX * scale
+                        let dy = (size.height - bounds.height * scale) / 2 - bounds.minY * scale
+                        
+                        var miniContext = context
+                        miniContext.translateBy(x: dx, y: dy)
+                        miniContext.scaleBy(x: scale, y: scale)
+                        
+                        // Render all drawing elements scaled down
+                        for element in manager.elements {
+                            guard element.tool != .text else { continue }
+                            if element.screenID == screenID || element.screenID == nil || (manager.isWhiteboardModeEnabled && manager.isMirroringEnabled) {
+                                drawElement(element, &miniContext)
+                            }
+                        }
+                        
+                        // Render current viewport rectangle
+                        let screenW = screen.frame.width
+                        let screenH = screen.frame.height
+                        let viewport = CGRect(
+                            x: -manager.panOffset.x / manager.zoomScale,
+                            y: -manager.panOffset.y / manager.zoomScale,
+                            width: screenW / manager.zoomScale,
+                            height: screenH / manager.zoomScale
+                        )
+                        
+                        var path = Path()
+                        path.addRect(viewport)
+                        
+                        let strokeColor = isDraggingViewport ? Color.blue : Color.blue.opacity(0.85)
+                        let fillColor = isDraggingViewport ? Color.blue.opacity(0.20) : Color.blue.opacity(0.12)
+                        
+                        miniContext.stroke(
+                            path,
+                            with: .color(strokeColor),
+                            style: StrokeStyle(lineWidth: 1.5 / scale)
+                        )
+                        miniContext.fill(
+                            path,
+                            with: .color(fillColor)
+                        )
+                    }
+                    .frame(width: miniMapWidth, height: miniMapHeight)
+                    .clipped()
+                    .background(Color.clear)
+                    .contentShape(Rectangle())
+                    .gesture(
+                        DragGesture(minimumDistance: 0)
+                            .onChanged { value in
+                                guard manager.selectedTool != .cursor && !manager.isOverrideActive else { return }
+                                isDraggingViewport = true
+                                updatePanFromMiniMapDrag(at: value.location, viewSize: CGSize(width: miniMapWidth, height: miniMapHeight))
+                            }
+                            .onEnded { _ in
+                                isDraggingViewport = false
+                            }
+                    )
+                }
+                .frame(width: miniMapWidth)
+                .background(
+                    ConcentricRectangle()
+                        .fill(isDark ? Color.black.opacity(0.12) : Color.white.opacity(0.15))
+                )
+                .glassEffect(.regular, in: ConcentricRectangle())
+                .onHover { hovering in
+                    withAnimation(.easeInOut(duration: 0.18)) {
+                        isHovered = hovering
+                    }
+                }
+                .shadow(color: Color.blue.opacity(isHovered ? 0.15 : 0.05), radius: isHovered ? 12 : 6, x: 0, y: 4)
+                .overlay(
+                    ConcentricRectangle()
+                        .stroke(
+                            LinearGradient(
+                                colors: [
+                                    isHovered ? Color.blue.opacity(0.35) : Color.white.opacity(0.22),
+                                    isHovered ? Color.blue.opacity(0.15) : Color.white.opacity(0.06)
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            ),
+                            lineWidth: 0.8
+                        )
+                )
+            }
+        }
+    }
+    
+    private func updatePanFromMiniMapDrag(at location: CGPoint, viewSize: CGSize) {
+        let bounds = canvasBounds
+        let scaleX = viewSize.width / bounds.width
+        let scaleY = viewSize.height / bounds.height
+        let scale = min(scaleX, scaleY)
+        
+        let dx = (viewSize.width - bounds.width * scale) / 2 - bounds.minX * scale
+        let dy = (viewSize.height - bounds.height * scale) / 2 - bounds.minY * scale
+        
+        let canvasX = (location.x - dx) / scale
+        let canvasY = (location.y - dy) / scale
+        
+        let screenW = screen.frame.width
+        let screenH = screen.frame.height
+        
+        let newPanX = (screenW / 2.0) - canvasX * manager.zoomScale
+        let newPanY = (screenH / 2.0) - canvasY * manager.zoomScale
+        
+        manager.panOffset = CGPoint(x: newPanX, y: newPanY)
     }
 }

@@ -39,6 +39,12 @@ For a quick setup, you can download the pre-compiled version of the app directly
 * **Direct Text Editor**: Click anywhere or double-click an existing text selection to type notes directly on screen.
 * **Intelligent Focus Detection**: Automatically pauses global hotkeys while you type to support natural keyboard symbols, and resumes instantly when editing completes.
 
+### 📋 Whiteboard Mode & Live Navigator Map
+* **Bound-Limited Whiteboard Space**: Transitions from normal desktop annotations to an expanded 8,000 x 8,000 pt virtual drawing board (approx. 40-50 screenfuls of workspace) to prevent getting lost in empty coordinates.
+* **Interactive Live Navigator Map (Mini-Map)**: Keep track of your virtual canvas with a glassmorphic Mini-Map featuring real-time drawing replication, dynamic viewport panning, and a quick zoom reset.
+* **Proportional Multi-Screen Mirroring**: Synchronize annotations dynamically across multiple displays with custom scaling modes (`Aspect Fit`, `Aspect Fill`, or `Absolute`) and unified click/erase coordinate tracking.
+
+
 ### 📸 Smart Screenshots & Clipboard Exports
 * **Precision Region Capture**: Capture full screen or select custom crop-regions.
 * **Whiteboard-Only Export**: Save drawings against transparent backgrounds (ignoring background desktop apps) for clean documentation.

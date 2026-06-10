@@ -12,6 +12,7 @@ enum Tool: String, CaseIterable {
     case eraser
     case laser
 
+
     var iconName: String {
         switch self {
         case .cursor:     return "pointer.arrow.ipad"
@@ -567,6 +568,73 @@ class AppManager: ObservableObject {
         }
     }
     
+    @Published var isWhiteboardModeEnabled: Bool = UserDefaults.standard.bool(forKey: "isWhiteboardModeEnabled") {
+        didSet {
+            UserDefaults.standard.set(isWhiteboardModeEnabled, forKey: "isWhiteboardModeEnabled")
+        }
+    }
+    @Published var isMiniMapEnabled: Bool = UserDefaults.standard.object(forKey: "isMiniMapEnabled") == nil ? true : UserDefaults.standard.bool(forKey: "isMiniMapEnabled") {
+        didSet {
+            UserDefaults.standard.set(isMiniMapEnabled, forKey: "isMiniMapEnabled")
+        }
+    }
+    @Published var isMiniMapCollapsed: Bool = UserDefaults.standard.bool(forKey: "isMiniMapCollapsed") {
+        didSet {
+            UserDefaults.standard.set(isMiniMapCollapsed, forKey: "isMiniMapCollapsed")
+        }
+    }
+    @Published var zoomScale: CGFloat = 1.0 {
+        didSet {
+            let clamped = clampPanOffset(panOffset)
+            if clamped != panOffset {
+                panOffset = clamped
+            }
+        }
+    }
+    @Published var panOffset: CGPoint = .zero {
+        didSet {
+            let clamped = clampPanOffset(panOffset)
+            if clamped != panOffset {
+                panOffset = clamped
+            }
+        }
+    }
+    
+    func clampPanOffset(_ offset: CGPoint) -> CGPoint {
+        let mainScreen = NSScreen.main ?? NSScreen.screens.first
+        let screenW = mainScreen?.frame.size.width ?? 1920.0
+        let screenH = mainScreen?.frame.size.height ?? 1080.0
+        
+        let limitX: CGFloat = 4000
+        let limitY: CGFloat = 4000
+        
+        let minX = screenW / 2.0 - limitX * zoomScale
+        let maxX = screenW / 2.0 + limitX * zoomScale
+        let minY = screenH / 2.0 - limitY * zoomScale
+        let maxY = screenH / 2.0 + limitY * zoomScale
+        
+        return CGPoint(
+            x: max(minX, min(maxX, offset.x)),
+            y: max(minY, min(maxY, offset.y))
+        )
+    }
+
+    func toCanvasSpace(_ screenPoint: CGPoint) -> CGPoint {
+        guard isWhiteboardModeEnabled && canvasColor != .none else { return screenPoint }
+        return CGPoint(
+            x: (screenPoint.x - panOffset.x) / zoomScale,
+            y: (screenPoint.y - panOffset.y) / zoomScale
+        )
+    }
+    
+    func toScreenSpace(_ canvasPoint: CGPoint) -> CGPoint {
+        guard isWhiteboardModeEnabled && canvasColor != .none else { return canvasPoint }
+        return CGPoint(
+            x: canvasPoint.x * zoomScale + panOffset.x,
+            y: canvasPoint.y * zoomScale + panOffset.y
+        )
+    }
+    
     // MARK: - Timer State
     @Published var isTimerActive: Bool = false {
         didSet {
@@ -928,6 +996,7 @@ class AppManager: ObservableObject {
     private var globalFlagsMonitor: SendableEventMonitor?
     private var localMouseMonitor: SendableEventMonitor?
     private var localKeyMonitor: SendableEventMonitor?
+    private var localScrollMonitor: SendableEventMonitor?
     private var previouslyActiveApp: NSRunningApplication? = nil
     
     var toolbarPanel: NSPanel?
@@ -1065,6 +1134,53 @@ class AppManager: ObservableObject {
             self.localKeyMonitor = SendableEventMonitor(monitor: monitor)
         }
         
+        if let monitor = NSEvent.addLocalMonitorForEvents(matching: [.scrollWheel, .magnify], handler: { [weak self] event in
+            guard let self = self else { return event }
+            if self.isWhiteboardModeEnabled && self.canvasColor != .none {
+                if event.type == .scrollWheel {
+                    if event.modifierFlags.contains(.command) {
+                        let zoomFactor: CGFloat = 1.05
+                        let dy = event.scrollingDeltaY
+                        let zoomIn = dy > 0
+                        
+                        let oldScale = self.zoomScale
+                        let newScale: CGFloat
+                        if zoomIn {
+                            newScale = min(6.0, oldScale * zoomFactor)
+                        } else {
+                            newScale = max(0.15, oldScale / zoomFactor)
+                        }
+                        
+                        let mouseLoc = event.locationInWindow
+                        let scaleRatio = newScale / oldScale
+                        self.panOffset.x = mouseLoc.x - (mouseLoc.x - self.panOffset.x) * scaleRatio
+                        self.panOffset.y = mouseLoc.y - (mouseLoc.y - self.panOffset.y) * scaleRatio
+                        self.zoomScale = newScale
+                        return nil
+                    } else {
+                        let dx = event.hasPreciseScrollingDeltas ? event.scrollingDeltaX : event.deltaX * 10
+                        let dy = event.hasPreciseScrollingDeltas ? event.scrollingDeltaY : event.deltaY * 10
+                        self.panOffset.x += dx
+                        self.panOffset.y += dy
+                        return nil
+                    }
+                } else if event.type == .magnify {
+                    let oldScale = self.zoomScale
+                    let newScale = min(6.0, max(0.15, oldScale * (1.0 + event.magnification)))
+                    
+                    let mouseLoc = event.locationInWindow
+                    let scaleRatio = newScale / oldScale
+                    self.panOffset.x = mouseLoc.x - (mouseLoc.x - self.panOffset.x) * scaleRatio
+                    self.panOffset.y = mouseLoc.y - (mouseLoc.y - self.panOffset.y) * scaleRatio
+                    self.zoomScale = newScale
+                    return nil
+                }
+            }
+            return event
+        }) {
+            self.localScrollMonitor = SendableEventMonitor(monitor: monitor)
+        }
+        
         // Initialize tool-specific width for the initially selected tool
         if self.selectedTool == .highlighter {
             self.strokeWidth = self.highlighterStrokeWidth
@@ -1084,6 +1200,7 @@ class AppManager: ObservableObject {
         if let monitor = globalFlagsMonitor { NSEvent.removeMonitor(monitor.monitor) }
         if let monitor = localMouseMonitor { NSEvent.removeMonitor(monitor.monitor) }
         if let monitor = localKeyMonitor { NSEvent.removeMonitor(monitor.monitor) }
+        if let monitor = localScrollMonitor { NSEvent.removeMonitor(monitor.monitor) }
     }
     
     func showShortcutsHelp() {
@@ -1198,6 +1315,7 @@ class AppManager: ObservableObject {
                 self.triggerShortcutToast(icon: Tool.laser.iconName, name: "Laser Pointer", keys: shortcut.displayName)
             }
         }
+
         // Undo / Redo
         KeyboardShortcuts.onKeyDown(for: .undo) { [weak self] in
             guard let self = self else { return }
@@ -1658,7 +1776,15 @@ class AppManager: ObservableObject {
                 }
             }
         } else {
-            let box = selectionBoundingBox(projectedTo: element.screenID)
+            var box = selectionBoundingBox(projectedTo: element.screenID)
+            if isWhiteboardModeEnabled && canvasColor != .none {
+                box = CGRect(
+                    x: box.origin.x * zoomScale + panOffset.x,
+                    y: box.origin.y * zoomScale + panOffset.y,
+                    width: box.width * zoomScale,
+                    height: box.height * zoomScale
+                )
+            }
             let boxMinY = box.minY
             let boxMaxY = box.maxY
             let boxMidX = box.midX
@@ -1685,7 +1811,8 @@ class AppManager: ObservableObject {
     // MARK: - Drawing gestures
     
     func handleDragChanged(_ value: DragGesture.Value, screenID: String) {
-        let location = value.location
+        let rawLocation = value.location
+        let location = isWhiteboardModeEnabled && canvasColor != .none ? toCanvasSpace(rawLocation) : rawLocation
         
         if selectedTool == .laser {
             if isMouseOverToolbar {
@@ -1820,7 +1947,8 @@ class AppManager: ObservableObject {
         
         // Complete the stroke to the final pen position
         if var element = currentElement, let _ = lassoPosition {
-            let lastPoint = DrawingPoint(location: value.location, pressure: currentPressure, width: element.lineWidth)
+            let endLoc = isWhiteboardModeEnabled && canvasColor != .none ? toCanvasSpace(value.location) : value.location
+            let lastPoint = DrawingPoint(location: endLoc, pressure: currentPressure, width: element.lineWidth)
             element.points.append(lastPoint)
             currentElement = element
         }
@@ -2099,12 +2227,12 @@ class AppManager: ObservableObject {
     }
     
     private func eraseAtPoint(_ point: CGPoint, screenID: String) {
-        let eraserRadius: CGFloat = 20.0
+        let eraserRadius: CGFloat = isWhiteboardModeEnabled && canvasColor != .none ? (20.0 / zoomScale) : 20.0
         let originalCount = elements.count
         elements.removeAll { element in
             if element.screenID == screenID {
                 return elementContains(element, point: point, grabRadius: eraserRadius)
-            } else if isMirroringEnabled, let elementScreenID = element.screenID {
+            } else if isMirroringEnabled && !isWhiteboardModeEnabled, let elementScreenID = element.screenID {
                 if let srcSize = size(from: elementScreenID),
                    let destSize = size(from: screenID) {
                     let transform = getTransform(from: srcSize, to: destSize, mode: mirroringScaleMode)
@@ -2125,10 +2253,11 @@ class AppManager: ObservableObject {
     // MARK: - Select tool gestures
     
     func handleSelectDragChanged(_ value: DragGesture.Value, screenID: String) {
-        let location = value.location
+        let location = isWhiteboardModeEnabled && canvasColor != .none ? toCanvasSpace(value.location) : value.location
+        let startLocation = isWhiteboardModeEnabled && canvasColor != .none ? toCanvasSpace(value.startLocation) : value.startLocation
         
         if selectDragPrevLocation == nil && activeSelectionLasso == nil {
-            if let hitId = hitTest(point: value.startLocation, screenID: screenID) {
+            if let hitId = hitTest(point: startLocation, screenID: screenID) {
                 recordState()
                 if NSEvent.modifierFlags.contains(.shift) {
                     if selectedElementIds.contains(hitId) {
@@ -2151,10 +2280,10 @@ class AppManager: ObservableObject {
                 if !NSEvent.modifierFlags.contains(.shift) {
                     selectedElementIds = []
                 }
-                activeSelectionLasso = [value.startLocation, location]
+                activeSelectionLasso = [startLocation, location]
                 activeSelectionScreenID = screenID
             }
-                } else if let prevLoc = selectDragPrevLocation, !selectedElementIds.isEmpty {
+        } else if let prevLoc = selectDragPrevLocation, !selectedElementIds.isEmpty {
             activeTransformType = .moving
             let delta = CGPoint(x: location.x - prevLoc.x, y: location.y - prevLoc.y)
             var updatedElements = elements
@@ -2186,7 +2315,8 @@ class AppManager: ObservableObject {
                now.timeIntervalSince(lastTime) < 0.35,
                hypot(value.location.x - lastLoc.x, value.location.y - lastLoc.y) < 5.0 {
                 // Double click detected!
-                if let hitId = hitTest(point: value.location, screenID: screenID) {
+                let hitPoint = isWhiteboardModeEnabled && canvasColor != .none ? toCanvasSpace(value.location) : value.location
+                if let hitId = hitTest(point: hitPoint, screenID: screenID) {
                     if let idx = elements.firstIndex(where: { $0.id == hitId }), elements[idx].tool == .text {
                         commitAllActiveTextElements()
                         selectedTool = .text
@@ -2313,7 +2443,7 @@ class AppManager: ObservableObject {
             return false
         }
         
-        if isMirroringEnabled, let elementScreenID = element.screenID {
+        if isMirroringEnabled && !isWhiteboardModeEnabled, let elementScreenID = element.screenID {
             guard let srcSize = size(from: elementScreenID),
                   let destSize = size(from: targetScreenID) else {
                 return false
@@ -2353,13 +2483,13 @@ class AppManager: ObservableObject {
     }
     
     func hitTest(point: CGPoint, screenID: String) -> UUID? {
-        let grabRadius: CGFloat = 10.0
+        let grabRadius: CGFloat = isWhiteboardModeEnabled && canvasColor != .none ? (10.0 / zoomScale) : 10.0
         for element in elements.reversed() {
             if element.screenID == screenID {
                 if elementContains(element, point: point, grabRadius: grabRadius) {
                     return element.id
                 }
-            } else if isMirroringEnabled, let elementScreenID = element.screenID {
+            } else if isMirroringEnabled && !isWhiteboardModeEnabled, let elementScreenID = element.screenID {
                 if let srcSize = size(from: elementScreenID),
                    let destSize = size(from: screenID) {
                     let transform = getTransform(from: srcSize, to: destSize, mode: mirroringScaleMode)
@@ -2604,7 +2734,7 @@ class AppManager: ObservableObject {
     
     func boundingBox(of element: DrawingElement, mappedTo targetScreenID: String) -> CGRect {
         let nativeBox = boundingBox(of: element)
-        if element.screenID == targetScreenID || element.screenID == nil {
+        if element.screenID == targetScreenID || element.screenID == nil || isWhiteboardModeEnabled {
             return nativeBox
         }
         guard let srcSize = size(from: element.screenID),
@@ -2625,7 +2755,7 @@ class AppManager: ObservableObject {
     func moveElementDirect(in element: inout DrawingElement, by delta: CGPoint, gestureScreenID: String? = nil) {
         var finalDelta = delta
         
-        if isMirroringEnabled,
+        if isMirroringEnabled && !isWhiteboardModeEnabled,
            let elementScreenID = element.screenID,
            let gestureScreenID = gestureScreenID,
            elementScreenID != gestureScreenID {
@@ -2664,8 +2794,13 @@ class AppManager: ObservableObject {
         
         let targetScreenID = originalSelectedElements.first?.screenID
         
-        let targetAnchor = convertPoint(anchor, from: gestureScreenID, to: targetScreenID)
-        let targetNewHandle = convertPoint(newHandle, from: gestureScreenID, to: targetScreenID)
+        var targetAnchor = convertPoint(anchor, from: gestureScreenID, to: targetScreenID)
+        var targetNewHandle = convertPoint(newHandle, from: gestureScreenID, to: targetScreenID)
+        
+        if isWhiteboardModeEnabled && canvasColor != .none {
+            targetAnchor = toCanvasSpace(targetAnchor)
+            targetNewHandle = toCanvasSpace(targetNewHandle)
+        }
         
         let rotationAngle = (selectedElementIds.count == 1) ? (originalSelectedElements.first?.rotationAngle ?? 0.0) : activeRotationAngle
         let C = originalSelectionCenter
