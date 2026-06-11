@@ -16,7 +16,7 @@ class ToolbarPanel: NSPanel {
         self.hasShadow = false // Disable AppKit shadow (we draw native SwiftUI shadows to avoid rectangular borders)
         self.level = NSWindow.Level(rawValue: NSWindow.Level.screenSaver.rawValue + 1)
         self.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        self.isMovableByWindowBackground = true
+        self.isMovableByWindowBackground = false
         self.sharingType = .readOnly
     }
     

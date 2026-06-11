@@ -23,6 +23,23 @@ struct VisualEffectView: NSViewRepresentable {
     }
 }
 
+// MARK: - Native Window Dragging for Pen Tablets
+struct WindowDragView: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        DragNSView()
+    }
+    
+    func updateNSView(_ nsView: NSView, context: Context) {}
+    
+    class DragNSView: NSView {
+        override func mouseDown(with event: NSEvent) {
+            if let window = self.window {
+                window.performDrag(with: event)
+            }
+        }
+    }
+}
+
 // MARK: - Toolbar View
 struct ToolbarView: View {
     @ObservedObject var manager: AppManager
@@ -71,6 +88,7 @@ struct ToolbarView: View {
         .onHover { hovering in
             manager.isMouseOverToolbar = hovering
         }
+        .background(WindowDragView())
     }
 
     @ViewBuilder
