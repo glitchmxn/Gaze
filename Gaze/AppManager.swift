@@ -3445,9 +3445,10 @@ class AppManager: ObservableObject {
         commitAllActiveTextElements()
         recordState()
         
+        let canvasPoint = isCanvasModeEnabled && canvasColor != .none ? toCanvasSpace(point) : point
         let newElement = DrawingElement(
             tool: .text,
-            points: [DrawingPoint(location: point, pressure: 1.0, width: 2.0)],
+            points: [DrawingPoint(location: canvasPoint, pressure: 1.0, width: 2.0)],
             color: selectedColor,
             lineWidth: 2.0,
             opacity: selectedOpacity,
@@ -3469,8 +3470,9 @@ class AppManager: ObservableObject {
             }
             return NSScreen.main?.frame.size.width ?? 1920.0
         }()
-        let startX = element.points.first?.location.x ?? 0.0
-        return max(200.0, screenWidth - startX - 40.0)
+        let canvasX = element.points.first?.location.x ?? 0.0
+        let screenX = isCanvasModeEnabled && canvasColor != .none ? toScreenSpace(CGPoint(x: canvasX, y: 0.0)).x : canvasX
+        return max(200.0, screenWidth - screenX - 40.0)
     }
     
     func updateTextElement(id: UUID, text: String, size: CGSize) {
