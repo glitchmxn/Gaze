@@ -33,10 +33,12 @@ For a quick setup, you can download the pre-compiled version of the app directly
 * **Spline Interpolation**: Real-time Catmull-Rom spline math renders drawing strokes with beautiful, natural curves.
 * **Weighted Moving Average (WMA) Stabilization**: Smooths out hand jitters for clean lines when using pen tablets or mouse inputs.
 * **Proportional Stroke Width Scaling**: Resizing vector shapes automatically scales stroke widths to keep layouts proportional.
+* **Built-in Geometric Shapes**: Draw precise vector shapes including rectangles (with rounded corners support), circles, triangles, straight lines, and arrows.
 
 ### 📐 Selection, Lasso & Smart Text Inputs
 * **Lasso & Vector Selection**: Select, drag, resize, rotate, or re-order (Bring to Front / Send to Back) any annotation on the canvas.
 * **Direct Text Editor**: Click anywhere or double-click an existing text selection to type notes directly on screen.
+* **App Interaction Override**: Hold the `⌥ + ⇧` (Option + Shift) hotkey at any time to temporarily suspend drawing mode, allowing you to click and interact with applications beneath your overlay annotations without losing your work.
 * **Intelligent Focus Detection**: Automatically pauses global hotkeys while you type to support natural keyboard symbols, and resumes instantly when editing completes.
 
 ### 📋 Canvas Mode & Live Navigator Map
@@ -45,9 +47,10 @@ For a quick setup, you can download the pre-compiled version of the app directly
 * **Proportional Multi-Screen Mirroring**: Synchronize annotations dynamically across multiple displays with custom scaling modes (`Aspect Fit`, `Aspect Fill`, or `Absolute`) and unified click/erase coordinate tracking.
 
 
-### 📸 Smart Screenshots & Clipboard Exports
+### 📸 Smart Screenshots & PDF Exports
 * **Precision Region Capture**: Capture full screen or select custom crop-regions.
 * **Canvas-Only Export**: Save drawings against transparent backgrounds (ignoring background desktop apps) for clean documentation.
+* **Vector PDF Export**: Export drawings losslessly to high-quality PDF files. Choose between saving directly to the **Desktop** or the **Downloads** directory depending on your preference.
 * **Zero-Spills Pipe Redirection**: Background screenshot processing runs asynchronously without blocking the main drawing threads.
 
 ---
@@ -56,18 +59,31 @@ For a quick setup, you can download the pre-compiled version of the app directly
 
 Gaze registers global hotkeys to switch tools and perform actions instantly from any application:
 
-| Action | Shortcut |
-| :--- | :--- |
-| **Cursor / Selection Interaction** | `⌥ + 1` |
-| **Pencil Drawing Tool** | `⌥ + 2` |
-| **Highlighter Tool** | `⌥ + 3` |
-| **Text Box Tool** | `⌥ + 4` |
-| **Lasso / Selection Mode** | `⌥ + 5` |
-| **Laser Pointer Tool** | `⌥ + 6` |
-| **Eraser Brush** | `⌥ + 7` |
-| **Undo Stroke** | `⌥ + 8` |
-| **Redo Stroke** | `⌥ + 9` |
-| **Toggle Canvas Visibility** | `⌥ + 0` |
+| Category | Action | Shortcut |
+| :--- | :--- | :--- |
+| **Tool Selection** | Cursor / Selection Interaction | `⌥ + 1` |
+| | Pencil Drawing Tool | `⌥ + 2` |
+| | Highlighter Tool | `⌥ + 3` |
+| | Text Box Tool | `⌥ + 4` |
+| | Lasso / Selection Mode | `⌥ + 5` |
+| | Laser Pointer Tool | `⌥ + 6` |
+| | Eraser Brush | `⌥ + 7` |
+| **Shape Selection**| Square Shape | `⌥ + ⌘ + 1` |
+| | Circle Shape | `⌥ + ⌘ + 2` |
+| | Triangle Shape | `⌥ + ⌘ + 3` |
+| | Line Shape | `⌥ + ⌘ + 4` |
+| | Arrow Shape | `⌥ + ⌘ + 5` |
+| **Editing** | Undo Stroke | `⌥ + 8` |
+| | Redo Stroke | `⌥ + 9` |
+| | Delete Selected Element | `⌘ + ⇧ + K` |
+| | Clear Screen | `⌥ + -` |
+| **Utility Controls**| Toggle Canvas Mode | `⌥ + 0` |
+| | Toggle Toolbar Visibility | `⌥ + Q` |
+| | Toggle Timer / Stopwatch | `⌥ + ⌘ + T` |
+| | Detach / Attach Timer HUD | `⌥ + ⌘ + J` |
+| | Smart Screenshot Capture | `⌥ + ⌘ + C` |
+| | Toggle Multi-Screen Mirroring| `⌥ + ⌘ + M` |
+| **Interaction** | Temporary App Interaction Mode | **Hold** `⌥ + ⇧` |
 
 ---
 
