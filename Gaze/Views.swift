@@ -33,8 +33,13 @@ struct WindowDragView: NSViewRepresentable {
     
     class DragNSView: NSView {
         override func mouseDown(with event: NSEvent) {
-            if let window = self.window {
-                window.performDrag(with: event)
+            let location = self.convert(event.locationInWindow, from: nil)
+            let rx = self.bounds.height / 2
+            let path = NSBezierPath(roundedRect: self.bounds, xRadius: rx, yRadius: rx)
+            if path.contains(location) {
+                if let window = self.window {
+                    window.performDrag(with: event)
+                }
             }
         }
     }
@@ -88,7 +93,6 @@ struct ToolbarView: View {
         .onHover { hovering in
             manager.isMouseOverToolbar = hovering
         }
-        .background(WindowDragView())
     }
 
     @ViewBuilder
@@ -323,6 +327,7 @@ struct ToolbarView: View {
             }
             .padding(.horizontal, 6)
             .frame(height: 38)
+            .background(WindowDragView())
             .glassEffect(.regular, in: .capsule)
             .overlay(
                 Capsule().stroke(
@@ -510,6 +515,7 @@ struct CompactToolbarView: View {
             }
             .padding(.horizontal, 6)
             .frame(height: 38)
+            .background(WindowDragView())
             .glassEffect(.regular, in: .capsule)
             .overlay(
                 Capsule().stroke(
