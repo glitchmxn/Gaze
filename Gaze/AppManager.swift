@@ -928,6 +928,7 @@ class AppManager: ObservableObject {
     @Published var globalToastMessage: String = ""
     private var globalToastTask: Task<Void, Never>? = nil
     
+    @MainActor
     func triggerGlobalToast(_ message: String) {
         globalToastTask?.cancel()
         globalToastMessage = message
@@ -935,7 +936,7 @@ class AppManager: ObservableObject {
             showGlobalToast = true
         }
         
-        globalToastTask = Task {
+        globalToastTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: 2_000_000_000)
             guard !Task.isCancelled else { return }
             withAnimation(.easeOut(duration: 0.25)) {
@@ -951,6 +952,7 @@ class AppManager: ObservableObject {
     @Published var shortcutToastKeys: String = ""
     private var shortcutToastTask: Task<Void, Never>? = nil
     
+    @MainActor
     func triggerShortcutToast(icon: String, name: String, keys: String) {
         shortcutToastTask?.cancel()
         shortcutToastIcon = icon
@@ -960,7 +962,7 @@ class AppManager: ObservableObject {
             showShortcutToast = true
         }
         
-        shortcutToastTask = Task {
+        shortcutToastTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: 1_500_000_000)
             guard !Task.isCancelled else { return }
             withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
