@@ -559,9 +559,9 @@ class AppManager: ObservableObject {
             UserDefaults.standard.set(canvasColor.rawValue, forKey: "canvasColor")
             if canvasColor != .none {
                 lastActiveCanvasColor = canvasColor
-                isWhiteboardModeEnabled = true
+                isCanvasModeEnabled = true
             } else {
-                isWhiteboardModeEnabled = false
+                isCanvasModeEnabled = false
             }
         }
     }
@@ -599,7 +599,7 @@ class AppManager: ObservableObject {
         }
     }
     
-    @Published var isWhiteboardModeEnabled: Bool = {
+    @Published var isCanvasModeEnabled: Bool = {
         if let raw = UserDefaults.standard.string(forKey: "canvasColor"),
            let color = CanvasColor(rawValue: raw) {
             return color != .none
@@ -607,7 +607,7 @@ class AppManager: ObservableObject {
         return false
     }() {
         didSet {
-            UserDefaults.standard.set(isWhiteboardModeEnabled, forKey: "isWhiteboardModeEnabled")
+            UserDefaults.standard.set(isCanvasModeEnabled, forKey: "isCanvasModeEnabled")
         }
     }
     @Published var isMiniMapEnabled: Bool = UserDefaults.standard.object(forKey: "isMiniMapEnabled") == nil ? true : UserDefaults.standard.bool(forKey: "isMiniMapEnabled") {
@@ -657,7 +657,7 @@ class AppManager: ObservableObject {
     }
 
     func toCanvasSpace(_ screenPoint: CGPoint) -> CGPoint {
-        guard isWhiteboardModeEnabled && canvasColor != .none else { return screenPoint }
+        guard isCanvasModeEnabled && canvasColor != .none else { return screenPoint }
         return CGPoint(
             x: (screenPoint.x - panOffset.x) / zoomScale,
             y: (screenPoint.y - panOffset.y) / zoomScale
@@ -665,7 +665,7 @@ class AppManager: ObservableObject {
     }
     
     func toScreenSpace(_ canvasPoint: CGPoint) -> CGPoint {
-        guard isWhiteboardModeEnabled && canvasColor != .none else { return canvasPoint }
+        guard isCanvasModeEnabled && canvasColor != .none else { return canvasPoint }
         return CGPoint(
             x: canvasPoint.x * zoomScale + panOffset.x,
             y: canvasPoint.y * zoomScale + panOffset.y
@@ -1179,7 +1179,7 @@ class AppManager: ObservableObject {
         
         if let monitor = NSEvent.addLocalMonitorForEvents(matching: [.scrollWheel, .magnify], handler: { [weak self] event in
             guard let self = self else { return event }
-            if self.isWhiteboardModeEnabled && self.canvasColor != .none {
+            if self.isCanvasModeEnabled && self.canvasColor != .none {
                 if event.type == .scrollWheel {
                     if event.modifierFlags.contains(.command) {
                         let zoomFactor: CGFloat = 1.05
@@ -1820,7 +1820,7 @@ class AppManager: ObservableObject {
             }
         } else {
             var box = selectionBoundingBox(projectedTo: element.screenID)
-            if isWhiteboardModeEnabled && canvasColor != .none {
+            if isCanvasModeEnabled && canvasColor != .none {
                 box = CGRect(
                     x: box.origin.x * zoomScale + panOffset.x,
                     y: box.origin.y * zoomScale + panOffset.y,
@@ -1855,7 +1855,7 @@ class AppManager: ObservableObject {
     
     func handleDragChanged(_ value: DragGesture.Value, screenID: String) {
         let rawLocation = value.location
-        let location = isWhiteboardModeEnabled && canvasColor != .none ? toCanvasSpace(rawLocation) : rawLocation
+        let location = isCanvasModeEnabled && canvasColor != .none ? toCanvasSpace(rawLocation) : rawLocation
         
         if selectedTool == .laser {
             if isMouseOverToolbar {
@@ -1990,7 +1990,7 @@ class AppManager: ObservableObject {
         
         // Complete the stroke to the final pen position
         if var element = currentElement, let _ = lassoPosition {
-            let endLoc = isWhiteboardModeEnabled && canvasColor != .none ? toCanvasSpace(value.location) : value.location
+            let endLoc = isCanvasModeEnabled && canvasColor != .none ? toCanvasSpace(value.location) : value.location
             let lastPoint = DrawingPoint(location: endLoc, pressure: currentPressure, width: element.lineWidth)
             element.points.append(lastPoint)
             currentElement = element
@@ -2270,12 +2270,12 @@ class AppManager: ObservableObject {
     }
     
     private func eraseAtPoint(_ point: CGPoint, screenID: String) {
-        let eraserRadius: CGFloat = isWhiteboardModeEnabled && canvasColor != .none ? (20.0 / zoomScale) : 20.0
+        let eraserRadius: CGFloat = isCanvasModeEnabled && canvasColor != .none ? (20.0 / zoomScale) : 20.0
         let originalCount = elements.count
         elements.removeAll { element in
             if element.screenID == screenID {
                 return elementContains(element, point: point, grabRadius: eraserRadius)
-            } else if isMirroringEnabled && !isWhiteboardModeEnabled, let elementScreenID = element.screenID {
+            } else if isMirroringEnabled && !isCanvasModeEnabled, let elementScreenID = element.screenID {
                 if let srcSize = size(from: elementScreenID),
                    let destSize = size(from: screenID) {
                     let transform = getTransform(from: srcSize, to: destSize, mode: mirroringScaleMode)
@@ -2296,8 +2296,8 @@ class AppManager: ObservableObject {
     // MARK: - Select tool gestures
     
     func handleSelectDragChanged(_ value: DragGesture.Value, screenID: String) {
-        let location = isWhiteboardModeEnabled && canvasColor != .none ? toCanvasSpace(value.location) : value.location
-        let startLocation = isWhiteboardModeEnabled && canvasColor != .none ? toCanvasSpace(value.startLocation) : value.startLocation
+        let location = isCanvasModeEnabled && canvasColor != .none ? toCanvasSpace(value.location) : value.location
+        let startLocation = isCanvasModeEnabled && canvasColor != .none ? toCanvasSpace(value.startLocation) : value.startLocation
         
         if selectDragPrevLocation == nil && activeSelectionLasso == nil {
             if let hitId = hitTest(point: startLocation, screenID: screenID) {
@@ -2358,7 +2358,7 @@ class AppManager: ObservableObject {
                now.timeIntervalSince(lastTime) < 0.35,
                hypot(value.location.x - lastLoc.x, value.location.y - lastLoc.y) < 5.0 {
                 // Double click detected!
-                let hitPoint = isWhiteboardModeEnabled && canvasColor != .none ? toCanvasSpace(value.location) : value.location
+                let hitPoint = isCanvasModeEnabled && canvasColor != .none ? toCanvasSpace(value.location) : value.location
                 if let hitId = hitTest(point: hitPoint, screenID: screenID) {
                     if let idx = elements.firstIndex(where: { $0.id == hitId }), elements[idx].tool == .text {
                         commitAllActiveTextElements()
@@ -2486,7 +2486,7 @@ class AppManager: ObservableObject {
             return false
         }
         
-        if isMirroringEnabled && !isWhiteboardModeEnabled, let elementScreenID = element.screenID {
+        if isMirroringEnabled && !isCanvasModeEnabled, let elementScreenID = element.screenID {
             guard let srcSize = size(from: elementScreenID),
                   let destSize = size(from: targetScreenID) else {
                 return false
@@ -2526,13 +2526,13 @@ class AppManager: ObservableObject {
     }
     
     func hitTest(point: CGPoint, screenID: String) -> UUID? {
-        let grabRadius: CGFloat = isWhiteboardModeEnabled && canvasColor != .none ? (10.0 / zoomScale) : 10.0
+        let grabRadius: CGFloat = isCanvasModeEnabled && canvasColor != .none ? (10.0 / zoomScale) : 10.0
         for element in elements.reversed() {
             if element.screenID == screenID {
                 if elementContains(element, point: point, grabRadius: grabRadius) {
                     return element.id
                 }
-            } else if isMirroringEnabled && !isWhiteboardModeEnabled, let elementScreenID = element.screenID {
+            } else if isMirroringEnabled && !isCanvasModeEnabled, let elementScreenID = element.screenID {
                 if let srcSize = size(from: elementScreenID),
                    let destSize = size(from: screenID) {
                     let transform = getTransform(from: srcSize, to: destSize, mode: mirroringScaleMode)
@@ -2777,7 +2777,7 @@ class AppManager: ObservableObject {
     
     func boundingBox(of element: DrawingElement, mappedTo targetScreenID: String) -> CGRect {
         let nativeBox = boundingBox(of: element)
-        if element.screenID == targetScreenID || element.screenID == nil || isWhiteboardModeEnabled {
+        if element.screenID == targetScreenID || element.screenID == nil || isCanvasModeEnabled {
             return nativeBox
         }
         guard let srcSize = size(from: element.screenID),
@@ -2798,7 +2798,7 @@ class AppManager: ObservableObject {
     func moveElementDirect(in element: inout DrawingElement, by delta: CGPoint, gestureScreenID: String? = nil) {
         var finalDelta = delta
         
-        if isMirroringEnabled && !isWhiteboardModeEnabled,
+        if isMirroringEnabled && !isCanvasModeEnabled,
            let elementScreenID = element.screenID,
            let gestureScreenID = gestureScreenID,
            elementScreenID != gestureScreenID {
@@ -2840,7 +2840,7 @@ class AppManager: ObservableObject {
         var targetAnchor = convertPoint(anchor, from: gestureScreenID, to: targetScreenID)
         var targetNewHandle = convertPoint(newHandle, from: gestureScreenID, to: targetScreenID)
         
-        if isWhiteboardModeEnabled && canvasColor != .none {
+        if isCanvasModeEnabled && canvasColor != .none {
             targetAnchor = toCanvasSpace(targetAnchor)
             targetNewHandle = toCanvasSpace(targetNewHandle)
         }

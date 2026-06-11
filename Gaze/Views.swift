@@ -28,7 +28,7 @@ struct ToolbarView: View {
     @ObservedObject var manager: AppManager
     @State private var isTrashHovering = false
     @State private var isTimerHovering = false
-    @State private var isWhiteboardHovering = false
+    @State private var isCanvasHovering = false
     @State private var showThicknessPopover = false
     @State private var showCanvasModePopover = false
     @State private var showTimerPopover = false
@@ -203,9 +203,9 @@ struct ToolbarView: View {
                     }
                     Image(systemName: manager.canvasColor != .none ? "inset.filled.square.dashed" : "square.dashed")
                         .font(.system(size: 18, weight: .regular))
-                        .foregroundColor(manager.canvasColor != .none ? .primary : (isWhiteboardHovering ? .primary : .secondary))
-                        .scaleEffect(isWhiteboardHovering ? 1.08 : 1.0)
-                        .animation(.spring(response: 0.25, dampingFraction: 0.55), value: isWhiteboardHovering)
+                        .foregroundColor(manager.canvasColor != .none ? .primary : (isCanvasHovering ? .primary : .secondary))
+                        .scaleEffect(isCanvasHovering ? 1.08 : 1.0)
+                        .animation(.spring(response: 0.25, dampingFraction: 0.55), value: isCanvasHovering)
                         .frame(width: 30, height: 30)
                         .contentShape(Rectangle())
                         .onTapGesture {
@@ -213,7 +213,7 @@ struct ToolbarView: View {
                             else { manager.canvasColor = manager.lastActiveCanvasColor }
                         }
                         .onLongPressGesture(minimumDuration: 0.4) { showCanvasModePopover = true }
-                        .onHover { isWhiteboardHovering = $0 }
+                        .onHover { isCanvasHovering = $0 }
                         .popover(isPresented: $showCanvasModePopover, arrowEdge: .top) {
                             CanvasModePickerView(manager: manager, isPresented: $showCanvasModePopover)
                                 .presentationBackground(.clear)
@@ -2712,7 +2712,7 @@ struct CanvasView: View {
                 // High-performance single-pass rendering.
                 Canvas { context, size in
                     var context = context
-                    if localManager.isWhiteboardModeEnabled && localManager.canvasColor != .none {
+                    if localManager.isCanvasModeEnabled && localManager.canvasColor != .none {
                         context.translateBy(x: localManager.panOffset.x, y: localManager.panOffset.y)
                         context.scaleBy(x: localManager.zoomScale, y: localManager.zoomScale)
                     }
@@ -2819,7 +2819,7 @@ struct CanvasView: View {
                         }
                         
                         let pts = laserPointsOnScreen
-                        let active = localManager.isWhiteboardModeEnabled && localManager.canvasColor != .none
+                        let active = localManager.isCanvasModeEnabled && localManager.canvasColor != .none
                         let zoom = active ? localManager.zoomScale : 1.0
                         
                         // 1. Draw Trail (only if in .trail mode)
@@ -2990,7 +2990,7 @@ struct CanvasView: View {
                 .allowsHitTesting(false)
             }
             
-            if !isCleanCapture && localManager.isWhiteboardModeEnabled && localManager.canvasColor != .none {
+            if !isCleanCapture && localManager.isCanvasModeEnabled && localManager.canvasColor != .none {
                 VStack {
                     Spacer()
                     HStack(alignment: .bottom) {
@@ -3846,7 +3846,7 @@ struct SelectionOverlayView: View {
         }()
         
         let screenBox: CGRect = {
-            if manager.isWhiteboardModeEnabled && manager.canvasColor != .none {
+            if manager.isCanvasModeEnabled && manager.canvasColor != .none {
                 return CGRect(
                     x: box.origin.x * manager.zoomScale + manager.panOffset.x,
                     y: box.origin.y * manager.zoomScale + manager.panOffset.y,
@@ -3857,7 +3857,7 @@ struct SelectionOverlayView: View {
             return box
         }()
         
-        let screenCenter = manager.isWhiteboardModeEnabled && manager.canvasColor != .none ? manager.toScreenSpace(center) : center
+        let screenCenter = manager.isCanvasModeEnabled && manager.canvasColor != .none ? manager.toScreenSpace(center) : center
         
         let rawCorners = corners(of: screenBox, center: screenCenter, angle: angle)
         let tl = rawCorners[0].point
@@ -3887,7 +3887,7 @@ struct SelectionOverlayView: View {
         
         let mBox = screenBox
         let mCenter = screenCenter
-        var mCornerRadius: CGFloat = (singleElement?.cornerRadius ?? 0) * (manager.isWhiteboardModeEnabled && manager.canvasColor != .none ? manager.zoomScale : 1.0)
+        var mCornerRadius: CGFloat = (singleElement?.cornerRadius ?? 0) * (manager.isCanvasModeEnabled && manager.canvasColor != .none ? manager.zoomScale : 1.0)
         
         if isMirroredScreen,
            let element = singleElement,
@@ -3895,7 +3895,7 @@ struct SelectionOverlayView: View {
             if let srcSize = manager.size(from: elementScreenID),
                let destSize = manager.size(from: screenID) {
                 let transform = manager.getTransform(from: srcSize, to: destSize, mode: manager.mirroringScaleMode)
-                mCornerRadius = (singleElement?.cornerRadius ?? 0) * transform.a * (manager.isWhiteboardModeEnabled && manager.canvasColor != .none ? manager.zoomScale : 1.0)
+                mCornerRadius = (singleElement?.cornerRadius ?? 0) * transform.a * (manager.isCanvasModeEnabled && manager.canvasColor != .none ? manager.zoomScale : 1.0)
             }
         }
         
@@ -4355,7 +4355,7 @@ struct CornerRadiusHandle: View {
                         let maxRadius = min(box.width, box.height) / 2
                         let newRadius = max(0, min(maxRadius, calculatedRadius))
                         
-                        if manager.isWhiteboardModeEnabled && manager.canvasColor != .none {
+                        if manager.isCanvasModeEnabled && manager.canvasColor != .none {
                             manager.elements[elementIdx].cornerRadius = newRadius / manager.zoomScale
                         } else {
                             manager.elements[elementIdx].cornerRadius = newRadius
@@ -4466,7 +4466,7 @@ struct PatternOverlayView: View {
     let lineWidth: CGFloat
     let dotSize: CGFloat
     
-    var isWhiteboardModeEnabled: Bool = false
+    var isCanvasModeEnabled: Bool = false
     var zoomScale: CGFloat = 1.0
     var panOffset: CGPoint = .zero
     
@@ -4482,7 +4482,7 @@ struct PatternOverlayView: View {
                 pColor = Color.black.opacity(0.30)
             }
             
-            let active = isWhiteboardModeEnabled && color != .none
+            let active = isCanvasModeEnabled && color != .none
             let zoom = active ? zoomScale : 1.0
             let pan = active ? panOffset : .zero
             
@@ -4558,7 +4558,7 @@ struct CanvasBackgroundView: View {
                     step: 28.0,
                     lineWidth: 0.75,
                     dotSize: 2.2,
-                    isWhiteboardModeEnabled: manager.isWhiteboardModeEnabled,
+                    isCanvasModeEnabled: manager.isCanvasModeEnabled,
                     zoomScale: manager.zoomScale,
                     panOffset: manager.panOffset
                 )
@@ -4886,7 +4886,7 @@ struct StaticTextView: View {
                 pos = originalCenter.applying(transform)
             }
         }
-        if manager.isWhiteboardModeEnabled && manager.canvasColor != .none {
+        if manager.isCanvasModeEnabled && manager.canvasColor != .none {
             pos = manager.toScreenSpace(pos)
         }
         return pos
@@ -4900,7 +4900,7 @@ struct StaticTextView: View {
                 scale = manager.lineWidthScale(from: srcSize, to: destSize, mode: manager.mirroringScaleMode)
             }
         }
-        if manager.isWhiteboardModeEnabled && manager.canvasColor != .none {
+        if manager.isCanvasModeEnabled && manager.canvasColor != .none {
             scale *= manager.zoomScale
         }
         return scale
@@ -4973,7 +4973,7 @@ struct TextEditorWrapper: View {
     @FocusState private var isFocused: Bool
     
     private var transformedScale: CGFloat {
-        if manager.isWhiteboardModeEnabled && manager.canvasColor != .none {
+        if manager.isCanvasModeEnabled && manager.canvasColor != .none {
             return manager.zoomScale
         }
         return 1.0
@@ -4984,7 +4984,7 @@ struct TextEditorWrapper: View {
         let centerOffset = CGPoint(x: element.textSize.width / 2, y: element.textSize.height / 2)
         let originalCenter = CGPoint(x: originalPos.x + centerOffset.x, y: originalPos.y + centerOffset.y)
         
-        if manager.isWhiteboardModeEnabled && manager.canvasColor != .none {
+        if manager.isCanvasModeEnabled && manager.canvasColor != .none {
             return manager.toScreenSpace(originalCenter)
         }
         return originalCenter
@@ -5602,7 +5602,7 @@ struct MiniMapView: View {
     
     private var canvasBounds: CGRect {
         let selectedScreenElements = manager.elements.filter {
-            $0.screenID == screenID || $0.screenID == nil || (manager.isWhiteboardModeEnabled && manager.isMirroringEnabled)
+            $0.screenID == screenID || $0.screenID == nil || (manager.isCanvasModeEnabled && manager.isMirroringEnabled)
         }
         let screenW = screen.frame.width
         let screenH = screen.frame.height
@@ -5752,7 +5752,7 @@ struct MiniMapView: View {
                         // Render all drawing elements scaled down
                         for element in manager.elements {
                             guard element.tool != .text else { continue }
-                            if element.screenID == screenID || element.screenID == nil || (manager.isWhiteboardModeEnabled && manager.isMirroringEnabled) {
+                            if element.screenID == screenID || element.screenID == nil || (manager.isCanvasModeEnabled && manager.isMirroringEnabled) {
                                 drawElement(element, &miniContext)
                             }
                         }
