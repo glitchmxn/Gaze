@@ -87,7 +87,7 @@ Gaze registers global hotkeys to switch tools and perform actions instantly from
 
 ---
 
-## ⚡ Performance Engineering (Zero CPU Spikes)
+## ⚡ Performance Engineering
 
 Gaze runs at a solid **60/120fps (ProMotion)** with sub-millisecond CPU overhead through several key optimizations:
 
