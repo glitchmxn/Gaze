@@ -5536,7 +5536,7 @@ struct MiniMapView: View {
     var body: some View {
         Group {
             if manager.isMiniMapCollapsed {
-                // Collapsed view: tiny bubble button
+                // Collapsed view: tiny bubble button with liquid glass effect
                 Button(action: {
                     withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
                         manager.isMiniMapCollapsed = false
@@ -5544,26 +5544,68 @@ struct MiniMapView: View {
                 }) {
                     Image(systemName: "map.fill")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(isDark ? .white : .black)
+                        .foregroundColor(isDark ? .white : .black.opacity(0.85))
                         .frame(width: 38, height: 38)
                         .background(
-                            ConcentricRectangle()
-                                .fill(isDark ? Color.black.opacity(0.12) : Color.white.opacity(0.15))
+                            ZStack {
+                                // Background blur base
+                                ConcentricRectangle()
+                                    .fill(isDark ? Color.black.opacity(0.15) : Color.white.opacity(0.20))
+                                
+                                // Liquid fluid highlight leak
+                                RadialGradient(
+                                    colors: [
+                                        isHovered ? Color.blue.opacity(0.25) : Color.blue.opacity(0.10),
+                                        Color.clear
+                                    ],
+                                    center: .bottomTrailing,
+                                    startRadius: 0,
+                                    endRadius: 25
+                                )
+                                
+                                // Specular glass reflection
+                                RadialGradient(
+                                    colors: [
+                                        Color.white.opacity(isDark ? 0.12 : 0.25),
+                                        Color.clear
+                                    ],
+                                    center: .topLeading,
+                                    startRadius: 0,
+                                    endRadius: 20
+                                )
+                            }
                         )
                         .glassEffect(.regular, in: ConcentricRectangle())
                         .overlay(
-                            ConcentricRectangle()
-                                .stroke(
-                                    LinearGradient(
-                                        colors: [
-                                            isHovered ? Color.blue.opacity(0.4) : Color.white.opacity(0.22),
-                                            isHovered ? Color.blue.opacity(0.15) : Color.white.opacity(0.06)
-                                        ],
-                                        startPoint: .top,
-                                        endPoint: .bottom
-                                    ),
-                                    lineWidth: 0.8
-                                )
+                            // Beveled dual stroke overlay for realistic glass edges
+                            ZStack {
+                                ConcentricRectangle()
+                                    .stroke(
+                                        LinearGradient(
+                                            colors: [
+                                                isHovered ? Color.blue.opacity(0.50) : Color.white.opacity(0.35),
+                                                isHovered ? Color.blue.opacity(0.20) : Color.white.opacity(0.08)
+                                            ],
+                                            startPoint: .top,
+                                            endPoint: .bottom
+                                        ),
+                                        lineWidth: 0.8
+                                    )
+                                
+                                ConcentricRectangle()
+                                    .stroke(
+                                        LinearGradient(
+                                            colors: [
+                                                Color.white.opacity(0.15),
+                                                Color.clear
+                                            ],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        ),
+                                        lineWidth: 0.4
+                                    )
+                                    .padding(0.8)
+                            }
                         )
                 }
                 .buttonStyle(.plain)
@@ -5572,9 +5614,10 @@ struct MiniMapView: View {
                         isHovered = hovering
                     }
                 }
-                .shadow(color: Color.blue.opacity(isHovered ? 0.15 : 0.05), radius: isHovered ? 8 : 4, x: 0, y: 3)
+                .shadow(color: Color.black.opacity(isDark ? 0.30 : 0.12), radius: 3, x: 0, y: 2)
+                .shadow(color: Color.blue.opacity(isHovered ? 0.22 : 0.08), radius: isHovered ? 10 : 5, x: 0, y: 4)
             } else {
-                // Expanded card view
+                // Expanded card view with liquid glass effect
                 VStack(spacing: 0) {
                     // Header title bar
                     HStack(spacing: 6) {
@@ -5589,12 +5632,18 @@ struct MiniMapView: View {
                         
                         // Zoom Badge
                         Text("\(Int(round(manager.zoomScale * 100)))%")
-                            .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                            .font(.system(size: 8, weight: .semibold, design: .monospaced))
                             .foregroundColor(.secondary)
-                            .padding(.horizontal, 4)
-                            .padding(.vertical, 1)
-                            .background(Color.primary.opacity(0.06))
-                            .cornerRadius(3)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(
+                                Capsule()
+                                    .fill(Color.primary.opacity(0.05))
+                            )
+                            .overlay(
+                                Capsule()
+                                    .stroke(Color.primary.opacity(0.08), lineWidth: 0.5)
+                            )
                         
                         // Reset Button
                         Button(action: {
@@ -5606,11 +5655,12 @@ struct MiniMapView: View {
                             Image(systemName: "arrow.counterclockwise")
                                 .font(.system(size: 9, weight: .bold))
                                 .foregroundColor(.secondary)
+                                .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                         .help("Reset Canvas View")
                         
-                        Color.primary.opacity(0.1).frame(width: 1, height: 10)
+                        Color.primary.opacity(0.08).frame(width: 1, height: 10)
                         
                         // Collapse Button
                         Button(action: {
@@ -5621,12 +5671,23 @@ struct MiniMapView: View {
                             Image(systemName: "chevron.down")
                                 .font(.system(size: 8, weight: .bold))
                                 .foregroundColor(.secondary)
+                                .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                     }
                     .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(Color.primary.opacity(0.04))
+                    .padding(.vertical, 7)
+                    .background(
+                        Color.white.opacity(isDark ? 0.02 : 0.06)
+                    )
+                    .overlay(
+                        VStack {
+                            Spacer()
+                            Rectangle()
+                                .fill(Color.primary.opacity(isDark ? 0.08 : 0.04))
+                                .frame(height: 0.5)
+                        }
+                    )
                     
                     // Live mini-map viewport drawing
                     Canvas { context, size in
@@ -5664,16 +5725,49 @@ struct MiniMapView: View {
                         path.addRect(viewport)
                         
                         let strokeColor = isDraggingViewport ? Color.blue : Color.blue.opacity(0.85)
-                        let fillColor = isDraggingViewport ? Color.blue.opacity(0.20) : Color.blue.opacity(0.12)
+                        let fillColor = isDraggingViewport ? Color.blue.opacity(0.18) : Color.blue.opacity(0.10)
                         
-                        miniContext.stroke(
-                            path,
-                            with: .color(strokeColor),
-                            style: StrokeStyle(lineWidth: 1.5 / scale)
-                        )
                         miniContext.fill(
                             path,
                             with: .color(fillColor)
+                        )
+                        
+                        miniContext.stroke(
+                            path,
+                            with: .color(strokeColor.opacity(0.5)),
+                            style: StrokeStyle(lineWidth: 1.0 / scale)
+                        )
+                        
+                        // Corner brackets for liquid glass HUD feel
+                        let bracketLength = min(viewport.width, viewport.height) * 0.12
+                        let bracketWidth = 2.5 / scale
+                        let bracketColor = isDraggingViewport ? Color.cyan : Color.blue
+                        
+                        var bracketPath = Path()
+                        // Top-left
+                        bracketPath.move(to: CGPoint(x: viewport.minX, y: viewport.minY + bracketLength))
+                        bracketPath.addLine(to: CGPoint(x: viewport.minX, y: viewport.minY))
+                        bracketPath.addLine(to: CGPoint(x: viewport.minX + bracketLength, y: viewport.minY))
+                        
+                        // Top-right
+                        bracketPath.move(to: CGPoint(x: viewport.maxX - bracketLength, y: viewport.minY))
+                        bracketPath.addLine(to: CGPoint(x: viewport.maxX, y: viewport.minY))
+                        bracketPath.addLine(to: CGPoint(x: viewport.maxX, y: viewport.minY + bracketLength))
+                        
+                        // Bottom-left
+                        bracketPath.move(to: CGPoint(x: viewport.minX, y: viewport.maxY - bracketLength))
+                        bracketPath.addLine(to: CGPoint(x: viewport.minX, y: viewport.maxY))
+                        bracketPath.addLine(to: CGPoint(x: viewport.minX + bracketLength, y: viewport.maxY))
+                        
+                        // Bottom-right
+                        bracketPath.move(to: CGPoint(x: viewport.maxX - bracketLength, y: viewport.maxY))
+                        bracketPath.addLine(to: CGPoint(x: viewport.maxX, y: viewport.maxY))
+                        bracketPath.addLine(to: CGPoint(x: viewport.maxX, y: viewport.maxY - bracketLength))
+                        
+                        miniContext.stroke(
+                            bracketPath,
+                            with: .color(bracketColor),
+                            style: StrokeStyle(lineWidth: bracketWidth, lineCap: .round, lineJoin: .round)
                         )
                     }
                     .frame(width: miniMapWidth, height: miniMapHeight)
@@ -5694,8 +5788,33 @@ struct MiniMapView: View {
                 }
                 .frame(width: miniMapWidth)
                 .background(
-                    ConcentricRectangle()
-                        .fill(isDark ? Color.black.opacity(0.12) : Color.white.opacity(0.15))
+                    ZStack {
+                        // Background blur base
+                        ConcentricRectangle()
+                            .fill(isDark ? Color.black.opacity(0.15) : Color.white.opacity(0.20))
+                        
+                        // Liquid fluid highlight leak (multi-color gradient blobs for premium fluid feel)
+                        LinearGradient(
+                            colors: [
+                                Color.blue.opacity(isHovered ? 0.12 : 0.05),
+                                Color.purple.opacity(isHovered ? 0.08 : 0.03),
+                                Color.clear
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                        
+                        // Specular glass reflection
+                        RadialGradient(
+                            colors: [
+                                Color.white.opacity(isDark ? 0.12 : 0.22),
+                                Color.clear
+                            ],
+                            center: .topLeading,
+                            startRadius: 0,
+                            endRadius: 120
+                        )
+                    }
                 )
                 .glassEffect(.regular, in: ConcentricRectangle())
                 .onHover { hovering in
@@ -5703,20 +5822,38 @@ struct MiniMapView: View {
                         isHovered = hovering
                     }
                 }
-                .shadow(color: Color.blue.opacity(isHovered ? 0.15 : 0.05), radius: isHovered ? 12 : 6, x: 0, y: 4)
+                .shadow(color: Color.black.opacity(isDark ? 0.30 : 0.12), radius: 5, x: 0, y: 3)
+                .shadow(color: Color.blue.opacity(isHovered ? 0.22 : 0.08), radius: isHovered ? 16 : 8, x: 0, y: 6)
                 .overlay(
-                    ConcentricRectangle()
-                        .stroke(
-                            LinearGradient(
-                                colors: [
-                                    isHovered ? Color.blue.opacity(0.35) : Color.white.opacity(0.22),
-                                    isHovered ? Color.blue.opacity(0.15) : Color.white.opacity(0.06)
-                                ],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            ),
-                            lineWidth: 0.8
-                        )
+                    // Beveled dual stroke overlay
+                    ZStack {
+                        ConcentricRectangle()
+                            .stroke(
+                                LinearGradient(
+                                    colors: [
+                                        isHovered ? Color.blue.opacity(0.45) : Color.white.opacity(0.30),
+                                        isHovered ? Color.blue.opacity(0.18) : Color.white.opacity(0.06)
+                                    ],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                ),
+                                lineWidth: 0.8
+                            )
+                        
+                        ConcentricRectangle()
+                            .stroke(
+                                LinearGradient(
+                                    colors: [
+                                        Color.white.opacity(0.15),
+                                        Color.clear
+                                    ],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                ),
+                                lineWidth: 0.4
+                            )
+                            .padding(0.8)
+                    }
                 )
             }
         }
