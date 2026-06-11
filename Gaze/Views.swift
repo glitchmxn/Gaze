@@ -5614,8 +5614,6 @@ struct MiniMapView: View {
                         isHovered = hovering
                     }
                 }
-                .shadow(color: Color.black.opacity(isDark ? 0.30 : 0.12), radius: 3, x: 0, y: 2)
-                .shadow(color: Color.blue.opacity(isHovered ? 0.22 : 0.08), radius: isHovered ? 10 : 5, x: 0, y: 4)
             } else {
                 // Expanded card view with liquid glass effect
                 VStack(spacing: 0) {
@@ -5822,8 +5820,6 @@ struct MiniMapView: View {
                         isHovered = hovering
                     }
                 }
-                .shadow(color: Color.black.opacity(isDark ? 0.30 : 0.12), radius: 5, x: 0, y: 3)
-                .shadow(color: Color.blue.opacity(isHovered ? 0.22 : 0.08), radius: isHovered ? 16 : 8, x: 0, y: 6)
                 .overlay(
                     // Beveled dual stroke overlay
                     ZStack {
