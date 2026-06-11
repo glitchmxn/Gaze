@@ -5546,66 +5546,15 @@ struct MiniMapView: View {
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(isDark ? .white : .black.opacity(0.85))
                         .frame(width: 38, height: 38)
-                        .background(
-                            ZStack {
-                                // Background blur base
-                                ConcentricRectangle()
-                                    .fill(isDark ? Color.black.opacity(0.15) : Color.white.opacity(0.20))
-                                
-                                // Liquid fluid highlight leak
-                                RadialGradient(
-                                    colors: [
-                                        isHovered ? Color.blue.opacity(0.25) : Color.blue.opacity(0.10),
-                                        Color.clear
-                                    ],
-                                    center: .bottomTrailing,
-                                    startRadius: 0,
-                                    endRadius: 25
-                                )
-                                
-                                // Specular glass reflection
-                                RadialGradient(
-                                    colors: [
-                                        Color.white.opacity(isDark ? 0.12 : 0.25),
-                                        Color.clear
-                                    ],
-                                    center: .topLeading,
-                                    startRadius: 0,
-                                    endRadius: 20
-                                )
-                            }
-                        )
                         .glassEffect(.regular, in: ConcentricRectangle())
                         .overlay(
-                            // Beveled dual stroke overlay for realistic glass edges
-                            ZStack {
-                                ConcentricRectangle()
-                                    .stroke(
-                                        LinearGradient(
-                                            colors: [
-                                                isHovered ? Color.blue.opacity(0.50) : Color.white.opacity(0.35),
-                                                isHovered ? Color.blue.opacity(0.20) : Color.white.opacity(0.08)
-                                            ],
-                                            startPoint: .top,
-                                            endPoint: .bottom
-                                        ),
-                                        lineWidth: 0.8
-                                    )
-                                
-                                ConcentricRectangle()
-                                    .stroke(
-                                        LinearGradient(
-                                            colors: [
-                                                Color.white.opacity(0.15),
-                                                Color.clear
-                                            ],
-                                            startPoint: .leading,
-                                            endPoint: .trailing
-                                        ),
-                                        lineWidth: 0.4
-                                    )
-                                    .padding(0.8)
-                            }
+                            ConcentricRectangle().stroke(
+                                LinearGradient(
+                                    colors: [Color.primary.opacity(0.18), Color.primary.opacity(0.04)],
+                                    startPoint: .top, endPoint: .bottom
+                                ),
+                                lineWidth: 0.8
+                            )
                         )
                 }
                 .buttonStyle(.plain)
@@ -5786,35 +5735,6 @@ struct MiniMapView: View {
                 }
                 .frame(width: miniMapWidth)
                 .clipShape(ConcentricRectangle())
-                .background(
-                    ZStack {
-                        // Background blur base
-                        ConcentricRectangle()
-                            .fill(isDark ? Color.black.opacity(0.15) : Color.white.opacity(0.20))
-                        
-                        // Liquid fluid highlight leak (multi-color gradient blobs for premium fluid feel)
-                        LinearGradient(
-                            colors: [
-                                Color.blue.opacity(isHovered ? 0.12 : 0.05),
-                                Color.purple.opacity(isHovered ? 0.08 : 0.03),
-                                Color.clear
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                        
-                        // Specular glass reflection
-                        RadialGradient(
-                            colors: [
-                                Color.white.opacity(isDark ? 0.12 : 0.22),
-                                Color.clear
-                            ],
-                            center: .topLeading,
-                            startRadius: 0,
-                            endRadius: 120
-                        )
-                    }
-                )
                 .glassEffect(.regular, in: ConcentricRectangle())
                 .onHover { hovering in
                     withAnimation(.easeInOut(duration: 0.18)) {
@@ -5822,35 +5742,13 @@ struct MiniMapView: View {
                     }
                 }
                 .overlay(
-                    // Beveled dual stroke overlay
-                    ZStack {
-                        ConcentricRectangle()
-                            .stroke(
-                                LinearGradient(
-                                    colors: [
-                                        isHovered ? Color.blue.opacity(0.45) : Color.white.opacity(0.30),
-                                        isHovered ? Color.blue.opacity(0.18) : Color.white.opacity(0.06)
-                                    ],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                ),
-                                lineWidth: 0.8
-                            )
-                        
-                        ConcentricRectangle()
-                            .stroke(
-                                LinearGradient(
-                                    colors: [
-                                        Color.white.opacity(0.15),
-                                        Color.clear
-                                    ],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                ),
-                                lineWidth: 0.4
-                            )
-                            .padding(0.8)
-                    }
+                    ConcentricRectangle().stroke(
+                        LinearGradient(
+                            colors: [Color.primary.opacity(0.18), Color.primary.opacity(0.04)],
+                            startPoint: .top, endPoint: .bottom
+                        ),
+                        lineWidth: 0.8
+                    )
                 )
             }
         }
