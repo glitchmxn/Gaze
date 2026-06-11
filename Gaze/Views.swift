@@ -4931,15 +4931,9 @@ struct StaticTextView: View {
     }
     
     private var actualTextSize: CGSize {
-        guard let text = element.text else { return .zero }
-        let maxW = manager.getMaxTextWidth(for: element) * transformedScale
-        return measureText(
-            text,
-            fontSize: element.fontSize * transformedScale,
-            isBold: element.isBold,
-            isItalic: element.isItalic,
-            fontFamily: element.fontFamily,
-            maxWidth: maxW
+        CGSize(
+            width: element.textSize.width * transformedScale,
+            height: element.textSize.height * transformedScale
         )
     }
 
