@@ -1323,94 +1323,182 @@ struct CanvasModePickerView: View {
                 .padding(3)
                 .background(RoundedRectangle(cornerRadius: 9).fill(Color.primary.opacity(0.04)))
                 
-                if manager.canvasPattern != .none && manager.canvasColor != .none {
-                    VStack(alignment: .leading, spacing: 6) {
-                        HStack {
-                            Text("Grid Spacing")
-                                .font(.system(size: 11, weight: .medium))
-                            Spacer()
-                            Text("\(Int(manager.canvasGridSpacing)) px")
-                                .font(.system(size: 11, weight: .medium, design: .monospaced))
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        Slider(
-                            value: $manager.canvasGridSpacing,
-                            in: 14...84,
-                            step: 2
-                        )
-                        .labelsHidden()
-                    }
-                    .padding(.top, 6)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-                }
+
             }
             
-            // ── Whiteboard Mode Section ──────────────────────────────────────
+            // ── Canvas Controls ──────────────────────────────────────
             if manager.canvasColor != .none {
                 Divider()
                     .opacity(0.5)
                 
                 VStack(alignment: .leading, spacing: 10) {
                     HStack {
-                        Text("Whiteboard Mode")
+                        Text("Canvas Controls")
                             .font(.system(size: 11, weight: .semibold))
                             .foregroundColor(.secondary)
                         Spacer()
-                        Toggle("", isOn: $manager.isWhiteboardModeEnabled)
+                    }
+                    
+                    HStack {
+                        Text("Show Navigator Map")
+                            .font(.system(size: 11, weight: .medium))
+                        Spacer()
+                        Toggle("", isOn: $manager.isMiniMapEnabled)
                             .toggleStyle(.switch)
                             .labelsHidden()
                             .scaleEffect(0.8)
                     }
+                    .padding(.top, 2)
                     
-                    if manager.isWhiteboardModeEnabled {
-                        HStack {
-                            Text("Show Navigator Map")
-                                .font(.system(size: 11, weight: .medium))
-                            Spacer()
-                            Toggle("", isOn: $manager.isMiniMapEnabled)
-                                .toggleStyle(.switch)
-                                .labelsHidden()
-                                .scaleEffect(0.8)
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Zoom")
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundColor(.secondary)
+                            Text("\(Int(round(manager.zoomScale * 100)))%")
+                                .font(.system(size: 13, weight: .semibold, design: .monospaced))
                         }
-                        .padding(.top, 2)
                         
-                        HStack(spacing: 12) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Zoom")
-                                    .font(.system(size: 10, weight: .medium))
-                                    .foregroundColor(.secondary)
-                                Text("\(Int(round(manager.zoomScale * 100)))%")
-                                    .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                        Spacer()
+                        
+                        Button(action: {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+                                manager.zoomScale = 1.0
+                                manager.panOffset = .zero
                             }
-                            
+                        }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "arrow.counterclockwise")
+                                    .font(.system(size: 10, weight: .semibold))
+                                Text("Reset View")
+                                    .font(.system(size: 11, weight: .semibold))
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(Color.primary.opacity(0.08))
+                            .cornerRadius(6)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.top, 4)
+                }
+                    
+                    // ── Pages Section ──────────────────────────────────────
+                    Divider()
+                        .opacity(0.5)
+                    
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            Text("Pages")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(.secondary)
                             Spacer()
+                            Text("Page \(manager.currentPageIndex + 1) of \(manager.pages.count)")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(.primary)
+                        }
+                        
+                        HStack(spacing: 8) {
+                            Button(action: {
+                                withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
+                                    manager.switchToPage(at: manager.currentPageIndex - 1)
+                                }
+                            }) {
+                                Text("Prev")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 24)
+                                    .background(Color.primary.opacity(0.06))
+                                    .cornerRadius(6)
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(manager.currentPageIndex == 0)
                             
                             Button(action: {
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
-                                    manager.zoomScale = 1.0
-                                    manager.panOffset = .zero
+                                withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
+                                    manager.addPage()
                                 }
                             }) {
                                 HStack(spacing: 4) {
-                                    Image(systemName: "arrow.counterclockwise")
-                                        .font(.system(size: 10, weight: .semibold))
-                                    Text("Reset View")
-                                        .font(.system(size: 11, weight: .semibold))
+                                    Image(systemName: "plus")
+                                    Text("Add")
                                 }
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 5)
-                                .background(Color.primary.opacity(0.08))
+                                .font(.system(size: 11, weight: .semibold))
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 24)
+                                .background(Color.primary.opacity(0.06))
                                 .cornerRadius(6)
                             }
                             .buttonStyle(.plain)
+                            
+                            Button(action: {
+                                withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
+                                    manager.switchToPage(at: manager.currentPageIndex + 1)
+                                }
+                            }) {
+                                Text("Next")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 24)
+                                    .background(Color.primary.opacity(0.06))
+                                    .cornerRadius(6)
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(manager.currentPageIndex >= manager.pages.count - 1)
                         }
+                        
+                        // Custom segmented picker for PDF Export Destination
+                        HStack(spacing: 0) {
+                            ForEach(PDFExportDestination.allCases) { item in
+                                Button(action: {
+                                    withAnimation(.spring(response: 0.25, dampingFraction: 0.75)) {
+                                        manager.pdfExportDestination = item
+                                    }
+                                }) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: item.iconName)
+                                            .font(.system(size: 10))
+                                        Text(item.label)
+                                            .font(.system(size: 10, weight: .medium))
+                                    }
+                                    .foregroundColor(manager.pdfExportDestination == item ? .primary : .secondary)
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 22)
+                                    .contentShape(Rectangle())
+                                    .background {
+                                        if manager.pdfExportDestination == item {
+                                            RoundedRectangle(cornerRadius: 5)
+                                                .fill(Color.primary.opacity(0.09))
+                                        }
+                                    }
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(2)
+                        .background(RoundedRectangle(cornerRadius: 6).fill(Color.primary.opacity(0.04)))
                         .padding(.top, 4)
-                        .transition(.opacity.combined(with: .move(edge: .top)))
+                        
+                        Button(action: {
+                            manager.exportToPDF()
+                            isPresented = false
+                        }) {
+                            HStack {
+                                Image(systemName: "square.and.arrow.up")
+                                Text("Export All Pages to PDF")
+                            }
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(.primary)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 28)
+                            .background(Color.primary.opacity(0.09))
+                            .cornerRadius(6)
+                        }
+                        .buttonStyle(.plain)
                     }
+                    .transition(.opacity.combined(with: .move(edge: .top)))
                 }
             }
-        }
         .padding(16)
         .frame(width: 340)
         .glassEffect(.regular, in: ConcentricRectangle())
@@ -2547,6 +2635,7 @@ struct CanvasView: View {
     @ObservedObject var manager: AppManager
     let screen: NSScreen
     var isCleanCapture: Bool = false
+    var forceIncludeBackground: Bool = false
     
     var screenID: String {
         "\(screen.frame.origin.x),\(screen.frame.origin.y),\(screen.frame.size.width),\(screen.frame.size.height)"
@@ -2568,8 +2657,12 @@ struct CanvasView: View {
         
         ZStack {
             if isCleanCapture || localManager.isToolbarVisible {
+                if forceIncludeBackground {
+                    CanvasBackgroundView(manager: localManager, color: localManager.canvasColor, pattern: localManager.canvasPattern)
+                }
+                
                 if !isCleanCapture {
-                    CanvasBackgroundView(manager: localManager, color: localManager.canvasColor, pattern: localManager.canvasPattern, gridSpacing: localManager.canvasGridSpacing)
+                    CanvasBackgroundView(manager: localManager, color: localManager.canvasColor, pattern: localManager.canvasPattern)
                     .contentShape(Rectangle())
                     .gesture(DragGesture(minimumDistance: 0)
                         .onChanged { localManager.selectedTool == .select ? localManager.handleSelectDragChanged($0, screenID: screenID) : localManager.handleDragChanged($0, screenID: screenID) }
@@ -2897,16 +2990,23 @@ struct CanvasView: View {
                 .allowsHitTesting(false)
             }
             
-            if !isCleanCapture && localManager.isWhiteboardModeEnabled && localManager.canvasColor != .none && localManager.isMiniMapEnabled {
+            if !isCleanCapture && localManager.isWhiteboardModeEnabled && localManager.canvasColor != .none {
                 VStack {
                     Spacer()
-                    HStack {
+                    HStack(alignment: .bottom) {
+                        PageControlView(manager: localManager)
+                            .padding(.leading, 20)
+                            .padding(.bottom, 20)
+                        
                         Spacer()
-                        MiniMapView(manager: localManager, screen: screen) { element, ctx in
-                            self.drawElement(element, in: &ctx)
+                        
+                        if localManager.isMiniMapEnabled {
+                            MiniMapView(manager: localManager, screen: screen) { element, ctx in
+                                self.drawElement(element, in: &ctx)
+                            }
+                            .padding(.trailing, 20)
+                            .padding(.bottom, 20)
                         }
-                        .padding(.trailing, 20)
-                        .padding(.bottom, 20)
                     }
                 }
                 .transition(.opacity.combined(with: .scale(scale: 0.95)))
@@ -4448,7 +4548,6 @@ struct CanvasBackgroundView: View {
     @ObservedObject var manager: AppManager
     let color: CanvasColor
     let pattern: CanvasPattern
-    let gridSpacing: Double
     var body: some View {
         ZStack {
             backgroundColor
@@ -4456,7 +4555,7 @@ struct CanvasBackgroundView: View {
                 PatternOverlayView(
                     color: color,
                     pattern: pattern,
-                    step: CGFloat(gridSpacing),
+                    step: 28.0,
                     lineWidth: 0.75,
                     dotSize: 2.2,
                     isWhiteboardModeEnabled: manager.isWhiteboardModeEnabled,
@@ -5773,5 +5872,281 @@ struct MiniMapView: View {
         let newPanY = (screenH / 2.0) - canvasY * manager.zoomScale
         
         manager.panOffset = CGPoint(x: newPanX, y: newPanY)
+    }
+}
+
+// MARK: - Page Control floating View
+
+struct PageControlView: View {
+    @ObservedObject var manager: AppManager
+    @State private var isHovered = false
+    @State private var showPageListPopover = false
+    @State private var isPrevHovering = false
+    @State private var isNextHovering = false
+    @State private var isAddHovering = false
+    @State private var isExportHovering = false
+    @State private var isListHovering = false
+    
+    var body: some View {
+        HStack(spacing: 6) {
+            // Previous Page Button
+            Button(action: {
+                withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
+                    manager.switchToPage(at: manager.currentPageIndex - 1)
+                }
+            }) {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(manager.currentPageIndex > 0 ? (isPrevHovering ? .primary : .secondary) : .secondary.opacity(0.3))
+                    .frame(width: 28, height: 28)
+                    .background(RoundedRectangle(cornerRadius: 6).fill(isPrevHovering ? Color.primary.opacity(0.08) : Color.clear))
+            }
+            .buttonStyle(.plain)
+            .disabled(manager.currentPageIndex == 0)
+            .onHover { isPrevHovering = $0 }
+            .help("Previous Page")
+            
+            // Current Page Display / Popover Trigger
+            Button(action: { showPageListPopover.toggle() }) {
+                HStack(spacing: 4) {
+                    Text(manager.currentPageIndex < manager.pages.count ? manager.pages[manager.currentPageIndex].name : "Page \(manager.currentPageIndex + 1)")
+                        .font(.system(size: 11, weight: .bold))
+                    Image(systemName: "chevron.up")
+                        .font(.system(size: 8, weight: .bold))
+                }
+                .foregroundColor(isListHovering ? .primary : .secondary)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .background(RoundedRectangle(cornerRadius: 6).fill(isListHovering ? Color.primary.opacity(0.08) : Color.clear))
+            }
+            .buttonStyle(.plain)
+            .onHover { isListHovering = $0 }
+            .popover(isPresented: $showPageListPopover, arrowEdge: .top) {
+                PageListPopoverView(manager: manager, isPresented: $showPageListPopover)
+                    .presentationBackground(.clear)
+            }
+            .help("Page List & Manager")
+            
+            // Next Page Button
+            Button(action: {
+                withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
+                    manager.switchToPage(at: manager.currentPageIndex + 1)
+                }
+            }) {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(manager.currentPageIndex < manager.pages.count - 1 ? (isNextHovering ? .primary : .secondary) : .secondary.opacity(0.3))
+                    .frame(width: 28, height: 28)
+                    .background(RoundedRectangle(cornerRadius: 6).fill(isNextHovering ? Color.primary.opacity(0.08) : Color.clear))
+            }
+            .buttonStyle(.plain)
+            .disabled(manager.currentPageIndex == manager.pages.count - 1)
+            .onHover { isNextHovering = $0 }
+            .help("Next Page")
+            
+            Divider()
+                .frame(height: 16)
+                .opacity(0.3)
+            
+            // Add Page Button
+            Button(action: {
+                withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
+                    manager.addPage()
+                }
+            }) {
+                Image(systemName: "plus")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(isAddHovering ? .primary : .secondary)
+                    .frame(width: 28, height: 28)
+                    .background(RoundedRectangle(cornerRadius: 6).fill(isAddHovering ? Color.primary.opacity(0.08) : Color.clear))
+            }
+            .buttonStyle(.plain)
+            .onHover { isAddHovering = $0 }
+            .help("Add New Page")
+            
+            // PDF Export Button
+            Button(action: {
+                manager.exportToPDF()
+            }) {
+                Image(systemName: "square.and.arrow.up")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(isExportHovering ? .primary : .secondary)
+                    .frame(width: 28, height: 28)
+                    .background(RoundedRectangle(cornerRadius: 6).fill(isExportHovering ? Color.primary.opacity(0.08) : Color.clear))
+            }
+            .buttonStyle(.plain)
+            .onHover { isExportHovering = $0 }
+            .help("Export All Pages to PDF")
+        }
+        .padding(.horizontal, 6)
+        .frame(height: 38)
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 10))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10).stroke(
+                LinearGradient(
+                    colors: [Color.primary.opacity(0.18), Color.primary.opacity(0.04)],
+                    startPoint: .top, endPoint: .bottom
+                ),
+                lineWidth: 0.8
+            )
+        )
+        .shadow(color: Color.black.opacity(0.12), radius: 6, x: 0, y: 3)
+    }
+}
+
+// MARK: - Page List popover View
+
+struct PageRowView: View {
+    @ObservedObject var manager: AppManager
+    let idx: Int
+    let page: CanvasPage
+    @Binding var renamingIndex: Int?
+    @Binding var renameText: String
+    var onSelect: () -> Void
+    
+    @FocusState private var renameFieldIsFocused: Bool
+    
+    var body: some View {
+        let isSelected = idx == manager.currentPageIndex
+        HStack {
+            if renamingIndex == idx {
+                TextField("Page Name", text: $renameText, onCommit: {
+                    if !renameText.trimmingCharacters(in: .whitespaces).isEmpty {
+                        manager.renamePage(at: idx, to: renameText)
+                    }
+                    renamingIndex = nil
+                })
+                .font(.system(size: 12, weight: .medium))
+                .textFieldStyle(.plain)
+                .focused($renameFieldIsFocused)
+                .onAppear {
+                    renameFieldIsFocused = true
+                }
+            } else {
+                Text(page.name)
+                    .font(.system(size: 12, weight: isSelected ? .bold : .medium))
+                    .foregroundColor(isSelected ? .primary : .primary.opacity(0.8))
+                    .onTapGesture(count: 2) {
+                        renameText = page.name
+                        renamingIndex = idx
+                    }
+            }
+            
+            Spacer()
+            
+            // Rename Button
+            if renamingIndex != idx {
+                Button(action: {
+                    renameText = page.name
+                    renamingIndex = idx
+                }) {
+                    Image(systemName: "pencil")
+                        .font(.system(size: 9))
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("Rename Page (or double-click name)")
+            }
+            
+            // Delete Button
+            Button(action: {
+                withAnimation(.spring(response: 0.22, dampingFraction: 0.72)) {
+                    manager.deletePage(at: idx)
+                }
+            }) {
+                Image(systemName: "trash")
+                    .font(.system(size: 9))
+                    .foregroundColor(.red.opacity(0.8))
+            }
+            .buttonStyle(.plain)
+            .disabled(manager.pages.count <= 1)
+            .help("Delete Page")
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(isSelected ? Color.primary.opacity(0.08) : Color.clear)
+        )
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if renamingIndex == nil {
+                onSelect()
+            }
+        }
+    }
+}
+
+struct PageListPopoverView: View {
+    @ObservedObject var manager: AppManager
+    @Binding var isPresented: Bool
+    @State private var renamingIndex: Int? = nil
+    @State private var renameText: String = ""
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            Text("Canvas Pages")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundColor(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.bottom, 4)
+            
+            ScrollView {
+                VStack(spacing: 4) {
+                    ForEach(Array(manager.pages.enumerated()), id: \.element.id) { idx, page in
+                        PageRowView(
+                            manager: manager,
+                            idx: idx,
+                            page: page,
+                            renamingIndex: $renamingIndex,
+                            renameText: $renameText,
+                            onSelect: {
+                                withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
+                                    manager.switchToPage(at: idx)
+                                }
+                                isPresented = false
+                            }
+                        )
+                    }
+                }
+            }
+            .frame(maxHeight: 180)
+            
+            Divider()
+                .opacity(0.4)
+            
+            Button(action: {
+                withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
+                    manager.addPage()
+                }
+                isPresented = false
+            }) {
+                HStack {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 12))
+                    Text("Add Page")
+                        .font(.system(size: 11, weight: .semibold))
+                }
+                .foregroundColor(.primary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 6)
+                .background(Color.primary.opacity(0.06))
+                .cornerRadius(6)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(12)
+        .frame(width: 220)
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 10))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10).stroke(
+                LinearGradient(
+                    colors: [Color.white.opacity(0.18), Color.white.opacity(0.04)],
+                    startPoint: .top, endPoint: .bottom
+                ),
+                lineWidth: 0.8
+            )
+        )
+        .preferredColorScheme(.dark)
     }
 }

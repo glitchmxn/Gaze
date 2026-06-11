@@ -1,6 +1,7 @@
 import SwiftUI
 import Combine
 import AppKit
+import UniformTypeIdentifiers
 
 enum Tool: String, CaseIterable {
     case cursor
@@ -56,6 +57,20 @@ enum ShapeType: String, CaseIterable, Identifiable {
         case .triangle: return "triangle"
         case .line: return "line.diagonal"
         case .arrow: return "arrow.up.right"
+        }
+    }
+}
+
+enum PDFExportDestination: String, CaseIterable, Identifiable {
+    case desktop = "Desktop"
+    case downloads = "Downloads"
+    var id: String { self.rawValue }
+    var label: String { self.rawValue }
+    
+    var iconName: String {
+        switch self {
+        case .desktop: return "macwindow"
+        case .downloads: return "arrow.down.circle"
         }
     }
 }
@@ -359,6 +374,16 @@ struct HistoryState {
     let selectedElementIds: Set<UUID>
 }
 
+struct CanvasPage: Identifiable {
+    let id = UUID()
+    var name: String
+    var elements: [DrawingElement] = []
+    var panOffset: CGPoint = .zero
+    var zoomScale: CGFloat = 1.0
+    var undoStack: [HistoryState] = []
+    var redoStack: [HistoryState] = []
+}
+
 struct LaserPoint: Sendable {
     let location: CGPoint
     let creationTime: Date
@@ -534,6 +559,9 @@ class AppManager: ObservableObject {
             UserDefaults.standard.set(canvasColor.rawValue, forKey: "canvasColor")
             if canvasColor != .none {
                 lastActiveCanvasColor = canvasColor
+                isWhiteboardModeEnabled = true
+            } else {
+                isWhiteboardModeEnabled = false
             }
         }
     }
@@ -548,12 +576,15 @@ class AppManager: ObservableObject {
             UserDefaults.standard.set(canvasPattern.rawValue, forKey: "canvasPattern")
         }
     }
-    @Published var canvasGridSpacing: Double = {
-        let saved = UserDefaults.standard.double(forKey: "canvasGridSpacing")
-        return saved == 0.0 ? 28.0 : saved
+    @Published var pdfExportDestination: PDFExportDestination = {
+        if let raw = UserDefaults.standard.string(forKey: "pdfExportDestination"),
+           let dest = PDFExportDestination(rawValue: raw) {
+            return dest
+        }
+        return .desktop
     }() {
         didSet {
-            UserDefaults.standard.set(canvasGridSpacing, forKey: "canvasGridSpacing")
+            UserDefaults.standard.set(pdfExportDestination.rawValue, forKey: "pdfExportDestination")
         }
     }
     var lastActiveCanvasColor: CanvasColor = {
@@ -568,7 +599,13 @@ class AppManager: ObservableObject {
         }
     }
     
-    @Published var isWhiteboardModeEnabled: Bool = UserDefaults.standard.bool(forKey: "isWhiteboardModeEnabled") {
+    @Published var isWhiteboardModeEnabled: Bool = {
+        if let raw = UserDefaults.standard.string(forKey: "canvasColor"),
+           let color = CanvasColor(rawValue: raw) {
+            return color != .none
+        }
+        return false
+    }() {
         didSet {
             UserDefaults.standard.set(isWhiteboardModeEnabled, forKey: "isWhiteboardModeEnabled")
         }
@@ -793,6 +830,10 @@ class AppManager: ObservableObject {
     // MARK: - Drawing State
     @Published var elements: [DrawingElement] = []
     @Published var currentElement: DrawingElement? = nil
+    
+    // MARK: - Multi-Page State
+    @Published var pages: [CanvasPage] = [CanvasPage(name: "Page 1")]
+    @Published var currentPageIndex: Int = 0
     
     // MARK: - String-Lasso Stabilization
     // This algorithm adds a physical "slack" (dead-zone) between the pen and the ink.
@@ -1361,7 +1402,7 @@ class AppManager: ObservableObject {
                 self.canvasColor = self.lastActiveCanvasColor
             }
             if let shortcut = KeyboardShortcuts.getShortcut(for: .toggleCanvasMode) ?? KeyboardShortcuts.Name.toggleCanvasMode.initialShortcut {
-                self.triggerShortcutToast(icon: "macwindow", name: self.canvasColor == .none ? "Drawing Mode" : "Whiteboard Mode", keys: shortcut.displayName)
+                self.triggerShortcutToast(icon: "macwindow", name: self.canvasColor == .none ? "Drawing Mode" : "Canvas Mode", keys: shortcut.displayName)
             }
         }
         
@@ -3526,6 +3567,150 @@ class AppManager: ObservableObject {
                 NSApplication.shared.deactivate()
             }
         }
+    }
+    
+    // MARK: - Multi-Page Canvas Management
+    
+    func saveCurrentPageState() {
+        commitAllActiveTextElements()
+        guard currentPageIndex >= 0 && currentPageIndex < pages.count else { return }
+        pages[currentPageIndex].elements = elements
+        pages[currentPageIndex].panOffset = panOffset
+        pages[currentPageIndex].zoomScale = zoomScale
+        pages[currentPageIndex].undoStack = undoStack
+        pages[currentPageIndex].redoStack = redoStack
+    }
+    
+    func switchToPage(at index: Int) {
+        guard index >= 0 && index < pages.count else { return }
+        
+        // Save current page state first
+        saveCurrentPageState()
+        
+        // Update index
+        currentPageIndex = index
+        
+        // Load new page state
+        let newPage = pages[index]
+        self.elements = newPage.elements
+        self.panOffset = newPage.panOffset
+        self.zoomScale = newPage.zoomScale
+        self.undoStack = newPage.undoStack
+        self.redoStack = newPage.redoStack
+        self.selectedElementIds = []
+        self.currentElement = nil
+    }
+    
+    func addPage() {
+        // Save current state first
+        saveCurrentPageState()
+        
+        let newPageNumber = pages.count + 1
+        let newPage = CanvasPage(name: "Page \(newPageNumber)")
+        pages.append(newPage)
+        
+        // Switch to the newly created page
+        switchToPage(at: pages.count - 1)
+    }
+    
+    func deletePage(at index: Int) {
+        guard pages.count > 1 else {
+            // If it's the last page, we just clear it
+            clearAll()
+            return
+        }
+        
+        // If we are deleting the current page, switch to another page first
+        if index == currentPageIndex {
+            let nextIndex = index == 0 ? 0 : index - 1
+            pages.remove(at: index)
+            // Force reload
+            currentPageIndex = -1 // temporary invalid index to force load
+            switchToPage(at: nextIndex)
+        } else {
+            pages.remove(at: index)
+            if index < currentPageIndex {
+                currentPageIndex -= 1
+            }
+        }
+    }
+    
+    func renamePage(at index: Int, to newName: String) {
+        guard index >= 0 && index < pages.count else { return }
+        pages[index].name = newName
+    }
+    
+    // MARK: - PDF Export
+    
+    func exportToPDF() {
+        commitAllActiveTextElements()
+        
+        let fileManager = FileManager.default
+        let directoryURL: URL?
+        switch pdfExportDestination {
+        case .desktop:
+            directoryURL = fileManager.urls(for: .desktopDirectory, in: .userDomainMask).first
+        case .downloads:
+            directoryURL = fileManager.urls(for: .downloadsDirectory, in: .userDomainMask).first
+        }
+        
+        if let url = directoryURL?.appendingPathComponent("Gaze_Canvas_\(Int(Date().timeIntervalSince1970)).pdf") {
+            exportPagesToPDF(url: url)
+        } else {
+            self.triggerGlobalToast("Failed to find destination directory")
+        }
+    }
+    
+    private func exportPagesToPDF(url: URL) {
+        // Save current page state
+        saveCurrentPageState()
+        
+        // Remember current page to restore after export
+        let originalPageIndex = currentPageIndex
+        
+        let screen = self.toolbarPanel?.screen ?? NSScreen.main ?? NSScreen.screens.first ?? NSScreen.screens[0]
+        let screenFrame = screen.frame
+        
+        // We want the PDF page size to match the screen size
+        var mediaBox = CGRect(x: 0, y: 0, width: screenFrame.width, height: screenFrame.height)
+        
+        guard let consumer = CGDataConsumer(url: url as CFURL),
+              let pdfContext = CGContext(consumer: consumer, mediaBox: &mediaBox, nil) else {
+            self.triggerGlobalToast("Failed to create PDF context")
+            return
+        }
+        
+        for index in 0..<pages.count {
+            // Load this page's state temporarily into published fields
+            let page = pages[index]
+            self.elements = page.elements
+            self.panOffset = page.panOffset
+            self.zoomScale = page.zoomScale
+            
+            pdfContext.beginPage(mediaBox: &mediaBox)
+            
+            // Create the CanvasView for rendering.
+            // forceIncludeBackground: true ensures the background color/pattern are drawn in the PDF
+            let renderView = CanvasView(manager: self, screen: screen, isCleanCapture: true, forceIncludeBackground: true)
+                .frame(width: screenFrame.width, height: screenFrame.height)
+                .preferredColorScheme(self.canvasColor.isDark ? .dark : .light)
+            
+            let renderer = ImageRenderer(content: renderView)
+            renderer.scale = 1.0 // Vector quality
+            
+            renderer.render { size, renderInContext in
+                renderInContext(pdfContext)
+            }
+            
+            pdfContext.endPage()
+        }
+        
+        pdfContext.closePDF()
+        
+        // Restore original page state
+        switchToPage(at: originalPageIndex)
+        
+        self.triggerGlobalToast("Saved to \(self.pdfExportDestination.rawValue)!")
     }
 }
 
