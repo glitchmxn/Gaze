@@ -5785,6 +5785,7 @@ struct MiniMapView: View {
                     )
                 }
                 .frame(width: miniMapWidth)
+                .clipShape(ConcentricRectangle())
                 .background(
                     ZStack {
                         // Background blur base
