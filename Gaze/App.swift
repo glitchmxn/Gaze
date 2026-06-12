@@ -11,12 +11,18 @@ struct GazeApp: App {
             AppMenuView(manager: appDelegate.manager)
         } label: {
             if let image = NSImage(named: "gaze-icon") {
-                let _ = image.size = NSSize(width: 22, height: 22)
-                Image(nsImage: image)
+                Image(nsImage: image.resized(to: NSSize(width: 22, height: 22)))
             } else {
                 Image(systemName: "pencil.line")
             }
         }
+    }
+}
+
+extension NSImage {
+    func resized(to size: NSSize) -> NSImage {
+        self.size = size
+        return self
     }
 }
 

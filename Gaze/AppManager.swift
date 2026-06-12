@@ -3223,6 +3223,13 @@ class AppManager: ObservableObject {
                 for element in screenElements {
                     unionBox = unionBox.union(self.boundingBox(of: element, mappedTo: targetScreenID))
                 }
+                if self.isCanvasModeEnabled && self.canvasColor != .none {
+                    let screenX = unionBox.origin.x * self.zoomScale + self.panOffset.x
+                    let screenY = unionBox.origin.y * self.zoomScale + self.panOffset.y
+                    let screenW = unionBox.width * self.zoomScale
+                    let screenH = unionBox.height * self.zoomScale
+                    unionBox = CGRect(x: screenX, y: screenY, width: screenW, height: screenH)
+                }
                 let padding: CGFloat = 16
                 unionBox = unionBox.insetBy(dx: -padding, dy: -padding)
                 
@@ -3388,6 +3395,13 @@ class AppManager: ObservableObject {
         var unionBox = boundingBox(of: screenElements[0])
         for element in screenElements {
             unionBox = unionBox.union(boundingBox(of: element))
+        }
+        if isCanvasModeEnabled && canvasColor != .none {
+            let screenX = unionBox.origin.x * zoomScale + panOffset.x
+            let screenY = unionBox.origin.y * zoomScale + panOffset.y
+            let screenW = unionBox.width * zoomScale
+            let screenH = unionBox.height * zoomScale
+            unionBox = CGRect(x: screenX, y: screenY, width: screenW, height: screenH)
         }
         let padding: CGFloat = 16
         unionBox = unionBox.insetBy(dx: -padding, dy: -padding)

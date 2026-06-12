@@ -5545,7 +5545,12 @@ extension NSCursor {
         
         // Add a contrasting shadow so the cursor remains visible on same-colored backgrounds
         let shadow = NSShadow()
-        let brightness = color.usingColorSpace(.deviceRGB)?.brightnessComponent ?? 0.0
+        var brightness: CGFloat = 0.0
+        if let rgbColor = color.usingColorSpace(.sRGB) {
+            var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+            rgbColor.getHue(&h, saturation: &s, brightness: &b, alpha: &a)
+            brightness = b
+        }
         let isDark = brightness < 0.5
         shadow.shadowColor = isDark ? NSColor.white.withAlphaComponent(0.8) : NSColor.black.withAlphaComponent(0.5)
         shadow.shadowOffset = .zero
