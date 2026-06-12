@@ -3186,9 +3186,10 @@ class AppManager: ObservableObject {
             self.timerHUDPanel?.orderOut(nil)
         }
         
-        // Temporarily lower canvas window levels to .floating and disable ignoresMouseEvents so they are captured by screencapture
+        // Temporarily lower canvas window levels to .statusBar/.floating and disable ignoresMouseEvents so they are captured by screencapture
         for window in canvasWindows {
-            window.level = .floating
+            let captureLevel: NSWindow.Level = (self.isCanvasModeEnabled && self.canvasColor != .none) ? .statusBar : .floating
+            window.level = captureLevel
             window.ignoresMouseEvents = false
         }
         
@@ -3303,9 +3304,10 @@ class AppManager: ObservableObject {
             self.timerHUDPanel?.orderOut(nil)
         }
         
-        // Temporarily lower canvas window levels to .floating and disable ignoresMouseEvents so they are captured by screencapture
+        // Temporarily lower canvas window levels to .statusBar/.floating and disable ignoresMouseEvents so they are captured by screencapture
         for window in canvasWindows {
-            window.level = .floating
+            let captureLevel: NSWindow.Level = (self.isCanvasModeEnabled && self.canvasColor != .none) ? .statusBar : .floating
+            window.level = captureLevel
             window.ignoresMouseEvents = false
         }
         
